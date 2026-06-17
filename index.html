@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Documentator</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/bpmn-js@17.0.0/dist/assets/diagram-js.css" />
+  <link rel="stylesheet" href="https://unpkg.com/bpmn-js@17.0.0/dist/assets/bpmn-font/css/bpmn.css" />
+  <script src="https://unpkg.com/bpmn-js@17.0.0/dist/bpmn-modeler.development.js"></script>
+  
+  <style>
+    body, html { height: 100%; margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; background: #f1f5f9; }
+    header, footer, nav, .navbar, .header, .footer { display: none !important; }
+    
+    #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; align-items: stretch; justify-content: center; z-index: 9999; }
+    
+    .splash-sidebar { width: 350px; background: #1e293b; border-right: 1px solid #334155; padding: 25px; display: flex; flex-direction: column; flex-shrink: 0; }
+    .splash-sidebar-title { color: white; font-weight: bold; font-size: 14px; text-transform: uppercase; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    
+    .splash-card-container { flex: 1; display: flex; justify-content: center; align-items: center; }
+    .splash-card { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; max-width: 400px; width: 100%; }
+    .splash-card h1 { margin-top: 0; font-size: 24px; color: #1e293b; }
+    .splash-card p { color: #64748b; font-size: 14px; margin-bottom: 30px; }
+    .btn-large { display: block; width: 100%; padding: 15px; margin-bottom: 15px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; box-sizing: border-box; }
+    .btn-large:hover { background: #2563eb; }
+    .btn-large.outline { background: transparent; border: 2px solid #3b82f6; color: #3b82f6; }
+    
+    #app-workspace { display: none; flex: 1; flex-direction: column; height: 100%; overflow: hidden; }
+    .studio-header { background: #1e293b; color: white; padding: 0 20px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 13px; flex-shrink: 0; height: 50px; }
+    
+    .studio-header-left, .studio-header-right { display: flex; align-items: center; gap: 15px; height: 100%; }
+    .studio-toggle-btn { background: #334155; color: white; border: none; padding: 0 20px; font-size: 14px; cursor: pointer; transition: 0.2s; font-weight: bold; display: flex; align-items: center; gap: 8px; height: 100%; margin: 0; }
+    .studio-toggle-btn:hover { background: #475569; }
+
+    .studio-layout-controls { display: flex; gap: 4px; border-left: 1px solid #475569; padding-left: 15px; align-items: center; height: 100%; }
+    .studio-layout-btn { background: #1e293b; border: 1px solid #475569; color: #cbd5e1; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; height: 32px; margin: 0; }
+    .studio-layout-btn:hover { background: #334155; }
+    .studio-layout-btn.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+
+    .studio-status-indicator { display: flex; align-items: center; gap: 5px; color: #10b981; font-weight: bold; border-right: 1px solid #475569; padding-right: 15px; height: 100%; }
+    .studio-status-indicator.saving { color: #f59e0b; }
+    .studio-status-indicator.readonly { color: #94a3b8; }
+    
+    .app-container { display: flex; flex: 1; overflow: hidden; }
+    
+    #left-panel { width: 350px; background: #ffffff; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0; transition: width 0.3s ease, min-width 0.3s ease; overflow: hidden; flex-shrink: 0; }
+    #left-panel.collapsed { width: 0; min-width: 0; border-right: none; }
+    .panel-inner-left { width: 350px; display: flex; flex-direction: column; overflow-y: auto; height: 100%; }
+    
+    #workspace-core { display: flex; flex: 1; overflow: hidden; background: #f1f5f9; position: relative; }
+    #workspace-core.dock-right { flex-direction: row; }
+    #workspace-core.dock-bottom { flex-direction: column; }
+
+    #canvas { flex: 1; position: relative; background-color: #f8fafc; background-image: linear-gradient(rgba(203, 213, 225, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(203, 213, 225, 0.4) 1px, transparent 1px); background-size: 10px 10px; min-width: 0; min-height: 0; }
+    
+    #studio-breadcrumbs { position: absolute; bottom: 20px; left: 20px; z-index: 100; background: rgba(255, 255, 255, 0.95); padding: 6px 14px; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px; font-size: 12px; border: 1px solid #cbd5e1; font-weight: 500; }
+
+    #resizer { background: #cbd5e1; z-index: 10; transition: background 0.2s; flex-shrink: 0; }
+    #resizer:hover, #resizer.active { background: #3b82f6; }
+    #workspace-core.dock-right #resizer { width: 5px; cursor: col-resize; }
+    #workspace-core.dock-bottom #resizer { height: 5px; cursor: row-resize; }
+
+    #right-panel { background: #ffffff; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+    #workspace-core.dock-right #right-panel { width: 350px; border-left: 1px solid #e2e8f0; height: 100%; }
+    #workspace-core.dock-bottom #right-panel { height: 280px; border-top: 1px solid #e2e8f0; width: 100%; }
+    
+    #right-panel.collapsed { display: none !important; }
+    #workspace-core.right-collapsed #resizer { display: none !important; }
+    
+    .panel-inner-right { width: 100%; height: 100%; display: flex; flex-direction: column; overflow-y: auto; }
+
+    .sb-file-item { padding: 12px 15px; background: #334155; color: #f1f5f9; border-radius: 6px; margin-bottom: 8px; cursor: pointer; font-size: 13px; font-weight: bold; border: 1px solid transparent; transition: 0.2s; text-align: left; }
+    .sb-file-item:hover { background: #475569; border-color: #3b82f6; }
+
+    #app-workspace .studio-section { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+    #app-workspace .studio-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 10px; display: block; }
+    #app-workspace .studio-input-group { display: flex; gap: 5px; margin-bottom: 0px; align-items: stretch; height: 32px; }
+    
+    #app-workspace input[type="text"], 
+    #app-workspace textarea, 
+    #app-workspace select { 
+      padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; font-family: inherit; box-sizing: border-box; background: #fff; color: #0f172a; margin: 0; height: 32px; outline: none; box-shadow: none;
+    }
+    #app-workspace input[type="text"]:focus, #app-workspace select:focus { border-color: #3b82f6; }
+    #app-workspace input[type="text"].full-width, #app-workspace select.full-width { width: 100%; }
+    #app-workspace textarea { resize: vertical; min-height: 60px; height: auto; line-height: 1.4; }
+    #app-workspace input[disabled], #app-workspace textarea[disabled], #app-workspace select[disabled] { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
+    
+    #right-panel input, #right-panel textarea, #right-panel select { width: 100% !important; }
+
+    #app-workspace button.studio-btn { padding: 0 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; color: white; background: #3b82f6; display: flex; align-items: center; justify-content: center; margin: 0; height: 32px; }
+    #app-workspace button.studio-btn:hover { background: #2563eb; }
+    #app-workspace button.studio-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+    #app-workspace button.studio-btn.danger { background: #ef4444; padding: 0 8px; height: 24px; }
+    #app-workspace button.studio-btn.danger:hover { background: #dc2626; }
+    
+    #app-workspace .studio-layer-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s; }
+    #app-workspace .studio-layer-card:hover { background: #f8fafc; border-color: #cbd5e1; }
+    #app-workspace .studio-layer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    #app-workspace .studio-layer-name { font-weight: bold; font-size: 14px; color: #0f172a; margin: 0; }
+    #app-workspace .studio-layer-controls { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #64748b; }
+    #app-workspace .studio-layer-controls label { display: flex; align-items: center; gap: 4px; margin: 0; font-weight: normal; cursor: pointer; }
+    #app-workspace .studio-layer-controls input[type="checkbox"] { margin: 0; cursor: pointer; }
+    
+    #app-workspace .studio-field-tag { display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; padding: 6px 10px; border-radius: 4px; font-size: 12px; margin-bottom: 6px; border: 1px solid #e2e8f0; color: #334155; }
+    #app-workspace .studio-field-tag span { display: flex; align-items: center; gap: 4px; }
+    
+    #app-workspace .studio-form-group { margin-bottom: 15px; }
+    #app-workspace .studio-form-group label { display: block; font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 6px; text-transform: uppercase; }
+
+    .bpmn-layer-hidden { opacity: 0 !important; pointer-events: none !important; }
+  </style>
+</head>
+<body>
+
+  <div id="splash-screen">
+    <div class="splash-sidebar">
+      <span class="splash-sidebar-title">☁️ Supabase Banco de Dados</span>
+      
+      <div id="splash-sb-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; margin-top: 15px;">
+        </div>
+
+      <button id="splash-btn-new-db" class="btn-large" style="display: none; background: #10b981;">+ Novo Fluxo no DB</button>
+    </div>
+
+    <div class="splash-card-container">
+      <div class="splash-card">
+        <h1>Documentator</h1>
+        <p>Gerencie diagramas, infraestrutura e topologias.</p>
+        <button class="btn-large" id="btn-create-local">Criar Arquivo Local</button>
+        <button class="btn-large outline" id="btn-open-edit">Abrir Local para Edição</button>
+        <button class="btn-large outline" id="btn-open-read" style="border-color: #94a3b8; color: #64748b;">Abrir em Visualização (Read-Only)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-workspace">
+    <div class="studio-header">
+      <div class="studio-header-left">
+        <button class="studio-toggle-btn" id="btn-toggle-left" title="Recolher/Expandir Menu de Layers">☰ Layers</button>
+        <span id="file-name-display" style="font-weight: bold; margin-left: 15px;"></span>
+        <span id="mode-display" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: bold; margin-left: 10px;"></span>
+      </div>
+      
+      <div class="studio-header-right">
+        <div class="studio-layout-controls" style="border-left: none;">
+          <span style="font-size: 11px; color: #94a3b8; margin-right: 5px;">EXPORTAR:</span>
+          <button class="studio-layout-btn" id="btn-export-bpmn" title="Padrão XML BPMN 2.0" style="font-size: 12px; font-weight: bold;">.BPMN</button>
+          <button class="studio-layout-btn" id="btn-export-svg" title="Gráfico Vetorial (Alta Qualidade)" style="font-size: 12px; font-weight: bold; margin-left: 4px;">.SVG</button>
+          <button class="studio-layout-btn" id="btn-export-png" title="Imagem Rasterizada" style="font-size: 12px; font-weight: bold; margin-left: 4px;">.PNG</button>
+        </div>
+
+        <div id="save-status" class="studio-status-indicator">
+          <span id="save-icon"></span> <span id="save-text"></span>
+        </div>
+
+        <div class="studio-layout-controls">
+          <span style="font-size: 11px; color: #94a3b8; margin-right: 5px;">PROPRIEDADES:</span>
+          <button class="studio-layout-btn active" id="btn-dock-right" data-type="right" title="Fixar Lateral Direita">◧</button>
+          <button class="studio-layout-btn" id="btn-dock-bottom" data-type="bottom" title="Fixar Base Inferior">⬒</button>
+          <button class="studio-toggle-btn" id="btn-toggle-right" style="padding: 0 10px; margin-left: 5px; border-radius: 4px; border: 1px solid #475569;" title="Ocultar/Expandir Propriedades">⇆</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-container">
+      
+      <div id="left-panel">
+        <div class="panel-inner-left">
+          
+          <div class="studio-section" id="workspace-back-section">
+            <button class="studio-btn" id="btn-back-splash" style="background: #475569; width: 100%; height: 32px; display: flex; align-items: center; justify-content: center; gap: 5px;">⬅️ Menu Principal (Trocar Fluxo)</button>
+          </div>
+
+          <div class="studio-section" id="layer-creation-section">
+            <span class="studio-title">Criar Nova Layer</span>
+            <div class="studio-input-group">
+              <input type="text" id="new-layer-name" placeholder="Ex: Banco de Dados">
+              <button class="studio-btn" id="btn-add-layer">Add</button>
+            </div>
+          </div>
+          <div class="studio-section" id="layers-container" style="border-bottom: none;"></div>
+        </div>
+      </div>
+
+      <div id="workspace-core" class="dock-right">
+        <div id="studio-breadcrumbs"></div>
+        <div id="canvas"></div>
+        <div id="resizer"></div>
+
+        <div id="right-panel">
+          <div class="panel-inner-right">
+            <div class="studio-section" id="node-empty-state">
+              <span class="studio-title">Propriedades do Nó</span>
+              <p style="font-size: 12px; color: #94a3b8; margin: 0;">Selecione um elemento no diagrama.</p>
+            </div>
+            
+            <div class="studio-section" id="node-editor-state" style="display: none;">
+              <span class="studio-title" id="node-type-label"></span>
+              <strong id="node-id-label" style="font-size: 11px; color: #64748b; display: block; margin-bottom: 15px;"></strong>
+
+              <div class="studio-form-group">
+                <label>Nome do Nó de Exibição:</label>
+                <input type="text" id="node-name-input" class="full-width">
+              </div>
+
+              <div style="border-top: 1px solid #e2e8f0; margin: 15px 0;"></div>
+
+              <div class="studio-form-group" style="margin-bottom: 0;">
+                <label>Vincular Nó à Camada:</label>
+                <select id="node-layer-select" class="full-width"></select>
+              </div>
+
+              <div id="node-dynamic-fields" style="margin-top: 15px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://iujbehgouxhhmbdltbwm.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1amJlaGdvdXhoaG1iZGx0YndtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTY3Njc2MiwiZXhwIjoyMDk3MjUyNzYyfQ.ADEsRjGotcV7vaiTt89o67j5hKFkCtemisVr31SUJA0";
+
+    const PRISTINE_DATA = {
+      xml: `<?xml version="1.0" encoding="UTF-8"?>
+        <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+          <bpmn:process id="Process_1" isExecutable="false"><bpmn:startEvent id="StartEvent_1" name="Início" /></bpmn:process>
+          <bpmndi:BPMNDiagram id="BPMNDiagram_1"><bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1"><bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1"><dc:Bounds x="150" y="100" width="36" height="36" /></bpmndi:BPMNShape></bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+        </bpmn:definitions>`,
+      layers: { 'layer_negocio': { id: 'layer_negocio', name: 'Negócio (Core)', isFixed: true, fields: [{ name: 'SLA', type: 'text' }, { name: 'Responsável', type: 'text' }] } },
+      activeLayerId: 'layer_negocio',
+      nodes: { 'StartEvent_1': { layerId: 'layer_negocio', data: {} } }
+    };
+
+    const state = { isReadOnly: false, fileHandle: null, dbId: null, dbName: null, saveTimeout: null, selectedNodeId: null, data: null };
+    let bpmnModeler, canvas, eventBus, elementRegistry;
+
+    const Supabase = {
+      init() {
+        if(SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes('SUA_URL')) {
+            this.loadList();
+        } else {
+            document.getElementById('splash-sb-list').innerHTML = '<p style="color:#ef4444; font-size:12px; text-align:center;">Configure SUPABASE_URL e SUPABASE_KEY no código fonte.</p>';
+        }
+      },
+
+      async fetchApi(endpoint, method = 'GET', body = null) {
+        const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+        if (method === 'POST' || method === 'PATCH') headers['Prefer'] = 'return=representation';
+        
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, { method, headers, body: body ? JSON.stringify(body) : null });
+        if(!res.ok) throw new Error("Erro na API Supabase: " + await res.text());
+        return method === 'GET' || method === 'POST' ? await res.json() : null;
+      },
+
+      async loadList() {
+        try {
+          const list = await this.fetchApi('bpmn_diagrams?select=id,name&order=updated_at.desc');
+          this.renderList(list);
+          document.getElementById('splash-btn-new-db').style.display = 'block';
+        } catch(e) {
+          document.getElementById('splash-sb-list').innerHTML = '<p style="color:#ef4444; font-size:12px; text-align:center;">Erro ao conectar. Valide chaves.</p>';
+        }
+      },
+
+      renderList(list) {
+        const sContainer = document.getElementById('splash-sb-list');
+        sContainer.innerHTML = '';
+        
+        if(!list || list.length === 0) {
+          sContainer.innerHTML = '<p style="color:#64748b; font-size:12px; text-align:center;">Nenhum arquivo no banco.</p>';
+          return;
+        }
+
+        list.forEach(item => {
+          const sItem = document.createElement('div');
+          sItem.className = 'sb-file-item';
+          sItem.innerText = `📄 ${item.name}`;
+          sItem.addEventListener('click', () => app.abrirArquivoDB(item.id, item.name));
+          sContainer.appendChild(sItem);
+        });
+      },
+
+      async saveRecord(id, contentData) {
+        await this.fetchApi(`bpmn_diagrams?id=eq.${id}`, 'PATCH', { content: contentData, updated_at: new Date().toISOString() });
+      },
+
+      async createRecord(name, contentData) {
+        const res = await this.fetchApi('bpmn_diagrams', 'POST', { name, content: contentData });
+        return res[0];
+      }
+    };
+
+    const exporter = {
+      downloadFile(content, mimeType, filename) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([content], { type: mimeType }));
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      },
+
+      async downloadBPMN() {
+        if(!bpmnModeler) return;
+        try {
+          const { xml } = await bpmnModeler.saveXML({ format: true });
+          this.downloadFile(xml, 'application/xml', 'diagrama.bpmn');
+        } catch(e) { console.error("Falha ao salvar XML:", e); }
+      },
+
+      async downloadSVG() {
+        if(!bpmnModeler) return;
+        try {
+          const { svg } = await bpmnModeler.saveSVG();
+          this.downloadFile(svg, 'image/svg+xml', 'diagrama.svg');
+        } catch(e) { console.error("Falha ao salvar SVG:", e); }
+      },
+
+      async downloadPNG() {
+        if(!bpmnModeler) return;
+        try {
+          const { svg } = await bpmnModeler.saveSVG();
+          const encodedData = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+          
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            // Escala 2x para Alta Resolução (Retina/Impressão)
+            canvas.width = img.width * 2;
+            canvas.height = img.height * 2;
+            const ctx = canvas.getContext('2d');
+            
+            // Fundo Branco (Padrão PNG transparente do SVG)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.scale(2, 2);
+            ctx.drawImage(img, 0, 0);
+            
+            const link = document.createElement('a');
+            link.download = 'diagrama.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+          };
+          img.src = encodedData;
+        } catch(e) { console.error("Falha ao renderizar PNG:", e); }
+      }
+    };
+
+    const resizerEngine = {
+      isResizing: false,
+      init() {
+        const resizer = document.getElementById('resizer');
+        const rightPanel = document.getElementById('right-panel');
+        const workspaceCore = document.getElementById('workspace-core');
+
+        resizer.addEventListener('mousedown', (e) => {
+          this.isResizing = true; resizer.classList.add('active');
+          document.body.style.cursor = workspaceCore.classList.contains('dock-right') ? 'col-resize' : 'row-resize';
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!this.isResizing) return;
+          if (workspaceCore.classList.contains('dock-right')) {
+            let newWidth = window.innerWidth - e.clientX;
+            if (newWidth < 250) newWidth = 250; if (newWidth > 800) newWidth = 800;
+            rightPanel.style.width = newWidth + 'px'; rightPanel.style.height = '100%';
+          } else {
+            let newHeight = window.innerHeight - e.clientY;
+            if (newHeight < 150) newHeight = 150; if (newHeight > 600) newHeight = 600;
+            rightPanel.style.height = newHeight + 'px'; rightPanel.style.width = '100%';
+          }
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (this.isResizing) {
+            this.isResizing = false; resizer.classList.remove('active'); document.body.style.cursor = '';
+            if(bpmnModeler) bpmnModeler.get('canvas').resized();
+          }
+        });
+      }
+    };
+
+    const app = {
+      applyEmojiFavicon() {
+        const existingLinks = document.querySelectorAll("link[rel*='icon']");
+        existingLinks.forEach(link => link.parentNode.removeChild(link));
+        const link = document.createElement('link');
+        link.type = 'image/svg+xml';
+        link.rel = 'icon';
+        link.href = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%E2%9A%A1%3C%2Ftext%3E%3C%2Fsvg%3E';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      },
+
+      async abrirArquivoDB(id, name) {
+        try {
+          const res = await Supabase.fetchApi(`bpmn_diagrams?id=eq.${id}&select=content`);
+          state.data = res[0].content;
+          state.dbId = id; state.dbName = name; state.fileHandle = null; state.isReadOnly = false;
+          
+          if(!state.data.nodes) state.data.nodes = {}; 
+          this.initWorkspace();
+        } catch(e) { alert("Erro de rede ao ler registro Supabase."); }
+      },
+
+      async criarArquivoDB() {
+        const name = prompt("Nome da nova topologia:");
+        if(!name) return;
+        try {
+          const deepClonedPristine = JSON.parse(JSON.stringify(PRISTINE_DATA));
+          const row = await Supabase.createRecord(name, deepClonedPristine);
+          await Supabase.loadList();
+          this.abrirArquivoDB(row.id, row.name);
+        } catch(e) { alert("Injeção negada. Nome duplicado ou erro de credenciais."); }
+      },
+
+      toggleLeftPanel() {
+        document.getElementById('left-panel').classList.toggle('collapsed');
+        setTimeout(() => bpmnModeler && bpmnModeler.get('canvas').resized(), 310);
+      },
+
+      toggleRightPanel() {
+        const panel = document.getElementById('right-panel');
+        const workspace = document.getElementById('workspace-core');
+        panel.classList.toggle('collapsed');
+        if (panel.classList.contains('collapsed')) workspace.classList.add('right-collapsed');
+        else workspace.classList.remove('right-collapsed');
+        setTimeout(() => bpmnModeler && bpmnModeler.get('canvas').resized(), 10);
+      },
+
+      setPropertiesDock(type) {
+        const workspace = document.getElementById('workspace-core');
+        const rightPanel = document.getElementById('right-panel');
+        
+        workspace.classList.remove('dock-right', 'dock-bottom');
+        workspace.classList.add(`dock-${type}`);
+        rightPanel.style.width = ''; rightPanel.style.height = '';
+
+        document.querySelectorAll('.studio-layout-controls .studio-layout-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.studio-layout-controls .studio-layout-btn[data-type="${type}"]`).classList.add('active');
+        setTimeout(() => bpmnModeler && bpmnModeler.get('canvas').resized(), 10);
+      },
+
+      async createNovoArquivo() {
+        try {
+          const handle = await window.showSaveFilePicker({ suggestedName: 'topologia.json', types: [{ description: 'BPMN Layer Project', accept: { 'application/json': ['.json'] } }] });
+          state.data = JSON.parse(JSON.stringify(PRISTINE_DATA));
+          state.fileHandle = handle; state.dbId = null; state.isReadOnly = false;
+          this.initWorkspace();
+        } catch (err) { console.warn(err); }
+      },
+
+      async abrirArquivo(allowEdit) {
+        try {
+          const [handle] = await window.showOpenFilePicker({ types: [{ description: 'BPMN Layer Project', accept: { 'application/json': ['.json'] } }] });
+          const file = await handle.getFile();
+          state.data = JSON.parse(await file.text());
+          if(!state.data.nodes) state.data.nodes = {}; 
+          
+          Object.values(state.data.layers).forEach(layer => {
+            if(layer.fields) {
+               layer.fields = layer.fields.map(f => typeof f === 'string' ? {name: f, type: 'text'} : f);
+            }
+          });
+          
+          state.fileHandle = handle; state.dbId = null; state.isReadOnly = !allowEdit;
+          this.initWorkspace();
+        } catch (err) { console.warn(err); }
+      },
+
+      initWorkspace() {
+        document.getElementById('splash-screen').style.display = 'none';
+        document.getElementById('app-workspace').style.display = 'flex';
+        
+        const fileName = state.dbId ? state.dbName : (state.fileHandle ? state.fileHandle.name : 'Arquivo');
+        document.getElementById('file-name-display').innerText = state.dbId ? `☁️ ${state.dbName}` : fileName;
+        
+        document.title = `Documentator - ${fileName.replace('.json', '')}`;
+        this.applyEmojiFavicon();
+        
+        const modeBadge = document.getElementById('mode-display');
+        const saveStatus = document.getElementById('save-status');
+        
+        if (state.isReadOnly) {
+          modeBadge.innerText = "Read-Only"; modeBadge.style.background = "#64748b";
+          document.getElementById('layer-creation-section').style.display = 'none';
+          saveStatus.classList.add('readonly'); saveStatus.innerHTML = "<span>🔒</span> Visualização";
+          document.getElementById('node-name-input').disabled = true;
+          document.getElementById('node-layer-select').disabled = true;
+        } else {
+          modeBadge.innerText = "Edição"; modeBadge.style.background = "#ef4444";
+          document.getElementById('node-name-input').disabled = false;
+          document.getElementById('node-layer-select').disabled = false;
+          this.updateSaveUI(false);
+        }
+
+        if(bpmnModeler) bpmnModeler.destroy();
+
+        const config = { container: '#canvas' };
+        if (state.isReadOnly) config.additionalModules = [{ paletteProvider: ['value', null], contextPadProvider: ['value', null], dragging: ['value', null], modeling: ['value', null] }];
+        else config.keyboard = { bindTo: document };
+
+        bpmnModeler = new BpmnJS(config);
+        canvas = bpmnModeler.get('canvas'); eventBus = bpmnModeler.get('eventBus'); elementRegistry = bpmnModeler.get('elementRegistry');
+
+        window.addEventListener('resize', () => {
+            if(bpmnModeler) bpmnModeler.get('canvas').resized();
+        });
+
+        bpmnModeler.importXML(state.data.xml).then(() => {
+          engine.initListeners();
+          
+          const activeRoot = canvas.getRootElement();
+          if(activeRoot) {
+            engine.handleRootSet(activeRoot);
+          }
+
+          engine.syncMissingNodes(); 
+          engine.renderLayersUI();
+        });
+        resizerEngine.init();
+      },
+
+      triggerAutoSave() {
+        if (state.isReadOnly) return;
+        this.updateSaveUI(true);
+        clearTimeout(state.saveTimeout);
+        state.saveTimeout = setTimeout(() => this.gravarNoDisco(), 1500);
+      },
+
+      async gravarNoDisco() {
+        try {
+          const { xml } = await bpmnModeler.saveXML({ format: true });
+          state.data.xml = xml;
+          
+          if(state.dbId) {
+             await Supabase.saveRecord(state.dbId, state.data);
+          } else if(state.fileHandle) {
+             const writable = await state.fileHandle.createWritable();
+             await writable.write(JSON.stringify(state.data, null, 2));
+             await writable.close();
+          }
+          this.updateSaveUI(false);
+        } catch (err) { console.error("Falha Crítica de I/O:", err); }
+      },
+
+      updateSaveUI(isSaving) {
+        const icon = document.getElementById('save-icon'); const text = document.getElementById('save-text'); const container = document.getElementById('save-status');
+        if (isSaving) { icon.innerText = "⏳"; text.innerText = "Salvando..."; container.classList.add('saving'); } 
+        else { icon.innerText = "✔️"; text.innerText = "Salvo"; container.classList.remove('saving'); }
+      }
+    };
+
+    const engine = {
+      handleRootSet(rootElement) {
+        if(!rootElement) return;
+        if(!this.knownRoots) this.knownRoots = {};
+        
+        const rootId = rootElement.businessObject.id;
+        this.knownRoots[rootId] = rootElement;
+
+        this.renderBreadcrumbs(rootElement);
+        this.syncMissingNodes();
+        this.updateVisibility();
+      },
+
+      renderBreadcrumbs(currentRoot) {
+        const container = document.getElementById('studio-breadcrumbs');
+        if(!container) return;
+        container.innerHTML = '';
+
+        let chain = [];
+        let currentBO = currentRoot.businessObject;
+
+        while(currentBO) {
+          if (currentBO.$type !== 'bpmn:Definitions') {
+             let nodeName = currentBO.name || currentBO.id;
+             
+             if (currentBO.$type === 'bpmn:Process' && currentBO.$parent && currentBO.$parent.$type === 'bpmn:Definitions') {
+                 const rawName = state.dbId ? state.dbName : (state.fileHandle ? state.fileHandle.name : 'Fluxo Principal');
+                 nodeName = rawName.replace('.json', '');
+             }
+             
+             chain.unshift({ id: currentBO.id, name: nodeName });
+          }
+          currentBO = currentBO.$parent;
+        }
+
+        chain.forEach((crumb, index) => {
+          if (index > 0) {
+            const sep = document.createElement('span');
+            sep.innerText = ' › ';
+            sep.style.color = '#94a3b8';
+            container.appendChild(sep);
+          }
+
+          const link = document.createElement('span');
+          link.innerText = crumb.name;
+          link.style.cursor = 'pointer';
+          link.style.fontSize = '12px';
+
+          if(index === chain.length - 1) {
+            link.style.fontWeight = '700';
+            link.style.color = '#0f172a';
+          } else {
+            link.style.fontWeight = '500';
+            link.style.color = '#3b82f6';
+            link.addEventListener('click', () => {
+              const targetRoot = this.knownRoots[crumb.id];
+              if(targetRoot) {
+                bpmnModeler.get('canvas').setRootElement(targetRoot);
+              }
+            });
+          }
+          container.appendChild(link);
+        });
+      },
+
+      syncMissingNodes() {
+        elementRegistry.forEach(el => {
+          if (el.type !== 'bpmn:Process' && el.type !== 'label') {
+            if (!state.data.nodes[el.id]) state.data.nodes[el.id] = { layerId: state.data.activeLayerId, data: {} };
+          }
+        });
+      },
+
+      initListeners() {
+        eventBus.on('root.set', (e) => this.handleRootSet(e.element));
+
+        if (!state.isReadOnly) {
+          eventBus.on('commandStack.changed', () => app.triggerAutoSave());
+          eventBus.on(['shape.added', 'connection.added'], function(e) {
+            const el = e.element;
+            if (el.type !== 'bpmn:Process' && el.type !== 'label') {
+              if (!state.data.nodes[el.id]) { state.data.nodes[el.id] = { layerId: state.data.activeLayerId, data: {} }; app.triggerAutoSave(); }
+            }
+          });
+        }
+
+        eventBus.on('selection.changed', function(e) {
+          const selection = e.newSelection;
+          if (selection.length === 1 && selection[0].type !== 'bpmn:Process') {
+            state.selectedNodeId = selection[0].id;
+            const element = selection[0];
+            
+            document.getElementById('node-empty-state').style.display = 'none';
+            document.getElementById('node-editor-state').style.display = 'block';
+            document.getElementById('node-type-label').innerText = element.type.replace('bpmn:', '');
+            document.getElementById('node-id-label').innerText = element.id;
+            
+            const nameInput = document.getElementById('node-name-input');
+            if (document.activeElement !== nameInput) {
+                nameInput.value = element.businessObject.name || '';
+            }
+
+            engine.renderNodeEditor();
+          } else {
+            state.selectedNodeId = null;
+            document.getElementById('node-empty-state').style.display = 'block';
+            document.getElementById('node-editor-state').style.display = 'none';
+          }
+        });
+
+        eventBus.on('element.changed', function(e) {
+          if (state.selectedNodeId === e.element.id) {
+            const nameInput = document.getElementById('node-name-input');
+            if (document.activeElement !== nameInput) {
+                nameInput.value = e.element.businessObject.name || '';
+            }
+          }
+        });
+      },
+
+      updateNodeName(newName) {
+        if(state.isReadOnly || !state.selectedNodeId) return;
+        const modeling = bpmnModeler.get('modeling');
+        const element = elementRegistry.get(state.selectedNodeId);
+        if(element) modeling.updateProperties(element, { name: newName });
+      },
+
+      addLayer() {
+        if(state.isReadOnly) return;
+        const input = document.getElementById('new-layer-name'); const name = input.value.trim();
+        if (!name) return;
+        
+        const id = 'layer_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        state.data.layers[id] = { id, name, isFixed: false, fields: [] };
+        input.value = '';
+        
+        this.renderLayersUI();
+        if (state.selectedNodeId) this.renderNodeEditor();
+        app.triggerAutoSave();
+      },
+
+      removeLayer(id) {
+        if(state.isReadOnly || id === 'layer_negocio') return;
+        delete state.data.layers[id];
+        Object.keys(state.data.nodes).forEach(nodeId => { if(state.data.nodes[nodeId].layerId === id) state.data.nodes[nodeId].layerId = 'layer_negocio'; });
+        
+        if(state.data.activeLayerId === id) this.setActiveLayer('layer_negocio');
+        else { this.renderLayersUI(); this.updateVisibility(); app.triggerAutoSave(); }
+        if(state.selectedNodeId) this.renderNodeEditor();
+      },
+
+      toggleFixed(id, isChecked) {
+        if(state.isReadOnly) return;
+        state.data.layers[id].isFixed = isChecked;
+        this.updateVisibility(); app.triggerAutoSave();
+      },
+
+      setActiveLayer(id) {
+        state.data.activeLayerId = id;
+        this.renderLayersUI(); this.updateVisibility(); app.triggerAutoSave();
+      },
+
+      addField(layerId) {
+        if(state.isReadOnly) return;
+        const input = document.getElementById(`new-field-name-${layerId}`); const selectType = document.getElementById(`new-field-type-${layerId}`);
+        const fieldName = input.value.trim(); const fieldType = selectType.value;
+        
+        if (fieldName && !state.data.layers[layerId].fields.find(f => f.name === fieldName)) {
+          state.data.layers[layerId].fields.push({ name: fieldName, type: fieldType });
+          input.value = '';
+          this.renderLayersUI();
+          if (state.selectedNodeId) this.renderNodeEditor();
+          app.triggerAutoSave();
+        }
+      },
+
+      removeField(layerId, fieldName) {
+        if(state.isReadOnly) return;
+        state.data.layers[layerId].fields = state.data.layers[layerId].fields.filter(f => f.name !== fieldName);
+        this.renderLayersUI();
+        if(state.selectedNodeId) this.renderNodeEditor();
+        app.triggerAutoSave();
+      },
+
+      renderLayersUI() {
+        const container = document.getElementById('layers-container'); 
+        container.innerHTML = ''; 
+        
+        Object.values(state.data.layers).forEach(layer => {
+          const isActive = state.data.activeLayerId === layer.id;
+          
+          const card = document.createElement('div');
+          card.className = 'studio-layer-card';
+          card.style.borderLeft = `4px solid ${isActive ? '#3b82f6' : '#e2e8f0'}`;
+          card.addEventListener('click', () => engine.setActiveLayer(layer.id));
+
+          const header = document.createElement('div');
+          header.className = 'studio-layer-header';
+          
+          const title = document.createElement('span');
+          title.className = 'studio-layer-name';
+          title.innerText = `${layer.name} ${isActive ? '🔵' : ''}`;
+          
+          const controls = document.createElement('div');
+          controls.className = 'studio-layer-controls';
+          controls.addEventListener('click', (e) => e.stopPropagation());
+
+          const lblFix = document.createElement('label');
+          const cbFix = document.createElement('input');
+          cbFix.type = 'checkbox';
+          cbFix.checked = layer.isFixed;
+          if(state.isReadOnly) cbFix.disabled = true;
+          cbFix.addEventListener('change', (e) => engine.toggleFixed(layer.id, e.target.checked));
+          lblFix.appendChild(cbFix);
+          lblFix.appendChild(document.createTextNode(' Fixa'));
+          controls.appendChild(lblFix);
+
+          if(layer.id !== 'layer_negocio' && !state.isReadOnly) {
+              const btnDel = document.createElement('button');
+              btnDel.className = 'studio-btn danger';
+              btnDel.innerText = 'X';
+              btnDel.addEventListener('click', () => engine.removeLayer(layer.id));
+              controls.appendChild(btnDel);
+          }
+
+          header.appendChild(title);
+          header.appendChild(controls);
+          card.appendChild(header);
+
+          const fieldsBox = document.createElement('div');
+          fieldsBox.style.marginTop = '10px'; fieldsBox.style.borderTop = '1px solid #f1f5f9'; fieldsBox.style.paddingTop = '10px';
+          fieldsBox.addEventListener('click', (e) => e.stopPropagation());
+          
+          const fTitle = document.createElement('span');
+          fTitle.style.fontSize = '10px'; fTitle.style.fontWeight = 'bold'; fTitle.style.color = '#94a3b8'; fTitle.style.marginBottom = '8px'; fTitle.style.display = 'block';
+          fTitle.innerText = 'CAMPOS DO NÓ:';
+          fieldsBox.appendChild(fTitle);
+
+          layer.fields.forEach(f => {
+              const fName = f.name; const fType = f.type || 'text'; const displayType = fType === 'textarea' ? 'Longo' : 'Curto';
+              const fTag = document.createElement('div');
+              fTag.className = 'studio-field-tag';
+              fTag.innerHTML = `<span>${fName} <small style="color:#94a3b8; margin-left: 4px;">(${displayType})</small></span>`;
+              
+              if(!state.isReadOnly) {
+                  const xBtn = document.createElement('span');
+                  xBtn.style.cursor = 'pointer'; xBtn.style.color = '#ef4444'; xBtn.style.fontWeight = 'bold'; xBtn.style.padding = '2px 6px';
+                  xBtn.innerText = 'X';
+                  xBtn.addEventListener('click', () => engine.removeField(layer.id, fName));
+                  fTag.appendChild(xBtn);
+              }
+              fieldsBox.appendChild(fTag);
+          });
+
+          if(!state.isReadOnly) {
+              const inGrp = document.createElement('div');
+              inGrp.className = 'studio-input-group';
+              inGrp.style.marginTop = '10px';
+
+              const inpName = document.createElement('input');
+              inpName.type = 'text'; inpName.id = `new-field-name-${layer.id}`; inpName.placeholder = 'Novo campo...'; inpName.style.width = '40%';
+              inpName.addEventListener('keydown', (e) => { e.stopPropagation(); if(e.key === 'Enter') engine.addField(layer.id); });
+
+              const selType = document.createElement('select');
+              selType.id = `new-field-type-${layer.id}`; selType.style.width = '40%';
+              const opt1 = document.createElement('option'); opt1.value = 'text'; opt1.innerText = 'Curto';
+              const opt2 = document.createElement('option'); opt2.value = 'textarea'; opt2.innerText = 'Longo';
+              selType.appendChild(opt1); selType.appendChild(opt2);
+
+              const btnAdd = document.createElement('button');
+              btnAdd.className = 'studio-btn'; btnAdd.innerText = '+';
+              btnAdd.addEventListener('click', () => engine.addField(layer.id));
+
+              inGrp.appendChild(inpName); inGrp.appendChild(selType); inGrp.appendChild(btnAdd);
+              fieldsBox.appendChild(inGrp);
+          }
+
+          card.appendChild(fieldsBox);
+          container.appendChild(card);
+        });
+      },
+
+      renderNodeEditor() {
+        const nodeId = state.selectedNodeId; const nodeData = state.data.nodes[nodeId];
+        if (!nodeData) return;
+
+        const select = document.getElementById('node-layer-select');
+        select.innerHTML = '';
+        Object.values(state.data.layers).forEach(l => {
+            const opt = document.createElement('option'); opt.value = l.id; opt.innerText = l.name;
+            if(nodeData.layerId === l.id) opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        const layerFields = state.data.layers[nodeData.layerId]?.fields || [];
+        const fieldsContainer = document.getElementById('node-dynamic-fields');
+        fieldsContainer.innerHTML = '';
+        
+        if(layerFields.length === 0) { 
+            fieldsContainer.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">Esta layer não possui campos configurados.</span>'; 
+            return; 
+        }
+
+        layerFields.forEach(f => {
+          const fName = f.name; const fType = f.type || 'text';
+          const val = nodeData.data[fName] || '';
+          
+          const grp = document.createElement('div');
+          grp.className = 'studio-form-group';
+          const lbl = document.createElement('label'); lbl.innerText = fName;
+          grp.appendChild(lbl);
+
+          let inputEl;
+          if (fType === 'textarea') { inputEl = document.createElement('textarea'); inputEl.rows = 3; } 
+          else { inputEl = document.createElement('input'); inputEl.type = 'text'; }
+          
+          inputEl.value = val;
+          if(state.isReadOnly) inputEl.disabled = true;
+          
+          inputEl.addEventListener('keydown', (e) => e.stopPropagation());
+          inputEl.addEventListener('keyup', (e) => engine.updateNodeData(fName, e.target.value));
+          inputEl.addEventListener('change', (e) => engine.updateNodeData(fName, e.target.value));
+
+          grp.appendChild(inputEl);
+          fieldsContainer.appendChild(grp);
+        });
+      },
+
+      assignNodeToLayer(layerId) {
+        if(state.isReadOnly || !state.selectedNodeId) return;
+        state.data.nodes[state.selectedNodeId].layerId = layerId;
+        this.renderNodeEditor(); this.updateVisibility(); app.triggerAutoSave();
+      },
+
+      updateNodeData(key, value) {
+        if(state.isReadOnly || !state.selectedNodeId) return;
+        if(!state.data.nodes[state.selectedNodeId].data) state.data.nodes[state.selectedNodeId].data = {};
+        state.data.nodes[state.selectedNodeId].data[key] = value; app.triggerAutoSave();
+      },
+
+      updateVisibility() {
+        elementRegistry.forEach(function(element) {
+          if (element.type === 'bpmn:Process') return;
+          
+          let targetId = element.id;
+          if (element.type === 'label' && element.labelTarget) targetId = element.labelTarget.id;
+
+          const nodeData = state.data.nodes[targetId]; if (!nodeData) return;
+          const nodeLayer = state.data.layers[nodeData.layerId]; if (!nodeLayer) return;
+
+          const isVisible = (nodeLayer.id === state.data.activeLayerId) || nodeLayer.isFixed;
+          if (!isVisible) canvas.addMarker(element.id, 'bpmn-layer-hidden');
+          else canvas.removeMarker(element.id, 'bpmn-layer-hidden');
+        });
+      }
+    };
+
+    function initStaticListeners() {
+        document.getElementById('splash-btn-new-db').addEventListener('click', () => app.criarArquivoDB());
+        document.getElementById('btn-back-splash').addEventListener('click', () => {
+            document.getElementById('splash-screen').style.display = 'flex';
+            document.getElementById('app-workspace').style.display = 'none';
+            document.title = 'Documentator';
+            Supabase.loadList();
+        });
+        
+        document.getElementById('btn-create-local').addEventListener('click', () => app.createNovoArquivo());
+        document.getElementById('btn-open-edit').addEventListener('click', () => app.abrirArquivo(true));
+        document.getElementById('btn-open-read').addEventListener('click', () => app.abrirArquivo(false));
+        
+        document.getElementById('btn-toggle-left').addEventListener('click', () => app.toggleLeftPanel());
+        document.getElementById('btn-toggle-right').addEventListener('click', () => app.toggleRightPanel());
+        
+        document.getElementById('btn-export-bpmn').addEventListener('click', () => exporter.downloadBPMN());
+        document.getElementById('btn-export-svg').addEventListener('click', () => exporter.downloadSVG());
+        document.getElementById('btn-export-png').addEventListener('click', () => exporter.downloadPNG());
+        
+        document.getElementById('btn-dock-right').addEventListener('click', () => app.setPropertiesDock('right'));
+        document.getElementById('btn-dock-bottom').addEventListener('click', () => app.setPropertiesDock('bottom'));
+
+        document.getElementById('btn-add-layer').addEventListener('click', () => engine.addLayer());
+        document.getElementById('new-layer-name').addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if(e.key === 'Enter') engine.addLayer();
+        });
+
+        const nodeNameInput = document.getElementById('node-name-input');
+        nodeNameInput.addEventListener('keydown', (e) => e.stopPropagation());
+        nodeNameInput.addEventListener('keyup', (e) => engine.updateNodeName(e.target.value));
+        
+        document.getElementById('node-layer-select').addEventListener('change', (e) => engine.assignNodeToLayer(e.target.value));
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        initStaticListeners();
+        app.applyEmojiFavicon();
+        Supabase.init();
+    });
+  </script>
+</body>
+</html>
