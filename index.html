@@ -224,22 +224,7 @@
                 
                 <div class="collapsible-content">
                   
-                  <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-                    <div style="flex: 1; text-align: center;">
-                      <label style="font-size: 9px; display: block; margin-bottom: 3px;">FUNDO</label>
-                      <input type="color" id="color-fill-input" class="full-width" style="height: 28px; padding: 1px; cursor: pointer;">
-                    </div>
-                    <div style="flex: 1; text-align: center;">
-                      <label style="font-size: 9px; display: block; margin-bottom: 3px;">BORDA</label>
-                      <input type="color" id="color-stroke-input" class="full-width" style="height: 28px; padding: 1px; cursor: pointer;">
-                    </div>
-                    <div style="flex: 1; text-align: center;">
-                      <label style="font-size: 9px; display: block; margin-bottom: 3px;">TEXTO</label>
-                      <input type="color" id="color-text-input" class="full-width" style="height: 28px; padding: 1px; cursor: pointer;">
-                    </div>
-                  </div>
-
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                     <label style="margin:0; font-size: 10px;">PINTURA RÁPIDA NO(A):</label>
                     <select id="color-target-select" style="height: 22px; padding: 0 5px; font-size: 11px; width: 85px; cursor: pointer;">
                       <option value="fill">Fundo</option>
@@ -249,19 +234,33 @@
                   </div>
                   <div id="palette-standard" class="color-grid" style="margin-bottom: 15px;"></div>
 
-                  <label style="margin:0 0 5px 0; font-size: 10px;">FONTE E TAMANHO</label>
-                  <select id="font-family-select" class="full-width" style="margin-bottom: 8px; font-size: 12px; height: 28px;">
-                    <option value="">Sistema (Padrão)</option>
-                    <option value="Arial, sans-serif">Arial</option>
-                    <option value="'Courier New', Courier, monospace">Courier New (Monospace)</option>
-                    <option value="'Times New Roman', Times, serif">Times New Roman</option>
-                    <option value="Verdana, sans-serif">Verdana</option>
-                  </select>
-                  
+                  <label style="margin:0 0 5px 0; font-size: 10px;">TEXTO E FONTE</label>
+                  <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 15px;">
+                    <select id="font-family-select" style="flex: 2; height: 28px; font-size: 11px;">
+                      <option value="">Padrão</option>
+                      <option value="Arial, sans-serif">Arial</option>
+                      <option value="'Courier New', Courier, monospace">Courier</option>
+                      <option value="'Times New Roman', Times, serif">Times</option>
+                    </select>
+                    <input type="number" id="font-size-input" title="Tamanho" style="flex: 1; height: 28px; padding: 2px; text-align: center;" min="8" max="48" placeholder="12">
+                    <button class="studio-btn toggle" id="btn-font-bold" title="Negrito" style="height: 28px; width: 28px; padding: 0;">B</button>
+                    <button class="studio-btn toggle" id="btn-font-italic" title="Itálico" style="height: 28px; width: 28px; padding: 0; font-style: italic;">I</button>
+                  </div>
+
+                  <label style="margin:0 0 5px 0; font-size: 10px;">CONTORNO E LINHAS</label>
                   <div style="display: flex; gap: 5px; align-items: center;">
-                    <input type="number" id="font-size-input" title="Tamanho Base (Padrão 12)" style="width: 100%; height: 28px; padding: 2px 5px; text-align: center;" min="8" max="48" placeholder="Tamanho (ex: 12)">
-                    <button class="studio-btn toggle" id="btn-font-bold" title="Negrito" style="height: 28px; flex: 1;">B</button>
-                    <button class="studio-btn toggle" id="btn-font-italic" title="Itálico" style="height: 28px; flex: 1; font-style: italic;">I</button>
+                    <select id="line-style-select" style="flex: 2; height: 28px; font-size: 11px;">
+                      <option value="">Contínua (Padrão)</option>
+                      <option value="dashed">Tracejada</option>
+                      <option value="dotted">Pontilhada</option>
+                    </select>
+                    <select id="line-width-select" style="flex: 1; height: 28px; font-size: 11px;">
+                      <option value="">1px (Padrão)</option>
+                      <option value="2">2px</option>
+                      <option value="3">3px</option>
+                      <option value="4">4px</option>
+                      <option value="5">5px</option>
+                    </select>
                   </div>
 
                   <button class="studio-btn full-width" id="btn-reset-style" style="margin-top: 15px; height: 28px; background: #cbd5e1; color: #334155;">↺ Resetar Formatação</button>
@@ -288,11 +287,10 @@
     const SUPABASE_URL = "https://iujbehgouxhhmbdltbwm.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1amJlaGdvdXhoaG1iZGx0YndtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTY3Njc2MiwiZXhwIjoyMDk3MjUyNzYyfQ.ADEsRjGotcV7vaiTt89o67j5hKFkCtemisVr31SUJA0";
 
-    // Adicionado cores base e estendido para 18 opções
     const PALETTE_COLORS = [
-      '#000000', '#FFFFFF', '#EF4444', '#10B981', '#3B82F6', '#F59E0B', // Cores Sólidas Base
-      '#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9', '#B5EAD7', '#C4FAF8', // Tons Pastel 1
-      '#BAE1FF', '#AEC6CF', '#E0BBE4', '#E8BAFF', '#FFC4E1', '#F1CBFF'  // Tons Pastel 2
+      '#000000', '#FFFFFF', '#EF4444', '#10B981', '#3B82F6', '#F59E0B', 
+      '#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9', '#B5EAD7', '#C4FAF8', 
+      '#BAE1FF', '#AEC6CF', '#E0BBE4', '#E8BAFF', '#FFC4E1', '#F1CBFF'  
     ];
 
     const PRISTINE_DATA = {
@@ -500,7 +498,7 @@
         this.applyEmojiFavicon();
         
         const modeBadge = document.getElementById('mode-display'); const saveStatus = document.getElementById('save-status');
-        const readOnlyInputs = ['node-name-input', 'node-layer-select', 'color-target-select', 'btn-reset-style', 'font-family-select', 'font-size-input', 'btn-font-bold', 'btn-font-italic', 'color-fill-input', 'color-stroke-input', 'color-text-input'];
+        const readOnlyInputs = ['node-name-input', 'node-layer-select', 'color-target-select', 'btn-reset-style', 'font-family-select', 'font-size-input', 'btn-font-bold', 'btn-font-italic', 'line-style-select', 'line-width-select'];
         
         if (state.isReadOnly) {
           modeBadge.innerText = "Read-Only"; modeBadge.style.background = "#64748b";
@@ -560,8 +558,10 @@
     };
 
     const engine = {
-      applyColorFromInput(target, newColor) {
+      applyColorFromPalette(newColor) {
         if(state.isReadOnly || !state.selectedNodeId) return;
+        const target = document.getElementById('color-target-select').value;
+        
         if (target === 'text') {
            this.updateNodeStyle('fontColor', newColor);
         } else {
@@ -569,22 +569,11 @@
            if(!element) return;
            bpmnModeler.get('modeling').setColor([element], { [target]: newColor });
            
-           // Fix de proteção para o texto não ser acidentalmente repintado com a cor da nova borda
+           // Evitar herança de cor da borda sobre o texto
            const nodeData = state.data.nodes[state.selectedNodeId];
            if (!nodeData.style) nodeData.style = {};
-           if (!nodeData.style.fontColor) {
-               this.updateNodeStyle('fontColor', '#222222');
-               document.getElementById('color-text-input').value = '#222222';
-           }
+           if (!nodeData.style.fontColor) this.updateNodeStyle('fontColor', '#222222');
         }
-      },
-
-      applyColorFromPalette(newColor) {
-        const target = document.getElementById('color-target-select').value;
-        this.applyColorFromInput(target, newColor);
-        if(target === 'fill') document.getElementById('color-fill-input').value = newColor;
-        if(target === 'stroke') document.getElementById('color-stroke-input').value = newColor;
-        if(target === 'text') document.getElementById('color-text-input').value = newColor;
       },
 
       updateNodeStyle(key, value) {
@@ -598,8 +587,15 @@
       resetNodeStyles() {
         if(state.isReadOnly || !state.selectedNodeId) return;
         const element = elementRegistry.get(state.selectedNodeId);
-        if(element) bpmnModeler.get('modeling').setColor([element], undefined);
-        if(state.data.nodes[state.selectedNodeId]) state.data.nodes[state.selectedNodeId].style = {};
+        if(element) {
+           // O 'null' é a única forma de arrancar as propriedades bioc injetadas pela engine
+           bpmnModeler.get('modeling').setColor([element], { fill: null, stroke: null });
+        }
+        
+        // Destrói as propriedades injetadas dinamicamente
+        if(state.data.nodes[state.selectedNodeId]) {
+           state.data.nodes[state.selectedNodeId].style = {};
+        }
         
         this.syncStyleEditor();
         this.updateDynamicStyles();
@@ -612,28 +608,39 @@
            const style = state.data.nodes[nodeId].style;
            if(style && Object.keys(style).length > 0) {
               
-              // Cobre o elemento pai E os labels renderizados paralelamente nas setas (_label)
-              css += `g[data-element-id="${nodeId}"] text.djs-label, g[data-element-id="${nodeId}_label"] text.djs-label {\n`;
-              if(style.fontFamily) css += `  font-family: ${style.fontFamily} !important;\n`;
-              if(style.fontColor)  css += `  fill: ${style.fontColor} !important;\n`;
-              if(style.isBold)     css += `  font-weight: bold !important;\n`;
-              else                 css += `  font-weight: normal !important;\n`;
-              if(style.isItalic)   css += `  font-style: italic !important;\n`;
-              else                 css += `  font-style: normal !important;\n`;
-              
-              if(style.fontSize) {
-                 let scale = (parseFloat(style.fontSize) / 12).toFixed(2);
-                 if(scale !== "1.00" && scale > 0) {
-                    css += `  transform: scale(${scale}) !important;\n`;
-                    css += `  transform-origin: center !important;\n`;
-                    css += `  transform-box: fill-box !important;\n`; // Garante que a escala não quebre as setas
-                 }
+              // CSS PARA O TEXTO (Nó principal e Nó Flutuante _label das Setas)
+              if(style.fontFamily || style.fontColor || style.isBold || style.isItalic || style.fontSize) {
+                  css += `g[data-element-id="${nodeId}"] text.djs-label, g[data-element-id="${nodeId}_label"] text.djs-label {\n`;
+                  if(style.fontFamily) css += `  font-family: ${style.fontFamily} !important;\n`;
+                  if(style.fontColor)  css += `  fill: ${style.fontColor} !important;\n`;
+                  if(style.isBold)     css += `  font-weight: bold !important;\n`;
+                  else                 css += `  font-weight: normal !important;\n`;
+                  if(style.isItalic)   css += `  font-style: italic !important;\n`;
+                  else                 css += `  font-style: normal !important;\n`;
+                  
+                  if(style.fontSize) {
+                     let scale = (parseFloat(style.fontSize) / 12).toFixed(2);
+                     if(scale !== "1.00" && scale > 0) {
+                        css += `  transform: scale(${scale}) !important;\n`;
+                        css += `  transform-origin: center !important;\n`;
+                        css += `  transform-box: fill-box !important;\n`; 
+                     }
+                  }
+                  css += `}\n`;
+                  
+                  // Fix para tspans emulados
+                  if(style.fontColor) {
+                      css += `g[data-element-id="${nodeId}"] text.djs-label tspan, g[data-element-id="${nodeId}_label"] text.djs-label tspan { fill: ${style.fontColor} !important; }\n`;
+                  }
               }
-              css += `}\n`;
-              
-              // Garante injeção profunda em tspans caso a engine trave
-              if(style.fontColor) {
-                  css += `g[data-element-id="${nodeId}"] text.djs-label tspan, g[data-element-id="${nodeId}_label"] text.djs-label tspan { fill: ${style.fontColor} !important; }\n`;
+
+              // CSS PARA CONTORNO E LINHA (Cobre a geometria principal gerada pelo BPMN.js)
+              if(style.lineStyle || style.lineWidth) {
+                  css += `g[data-element-id="${nodeId}"] .djs-visual > :nth-child(1) {\n`;
+                  if(style.lineWidth) css += `  stroke-width: ${style.lineWidth}px !important;\n`;
+                  if(style.lineStyle === 'dashed') css += `  stroke-dasharray: 5,5 !important;\n`;
+                  if(style.lineStyle === 'dotted') css += `  stroke-dasharray: 2,4 !important;\n  stroke-linecap: round !important;\n`;
+                  css += `}\n`;
               }
            }
         });
@@ -641,19 +648,9 @@
       },
 
       syncStyleEditor() {
-         const element = elementRegistry.get(state.selectedNodeId);
-         if(!element) return;
-         
-         const di = element.businessObject.di;
-         const currentFill = di && typeof di.get === 'function' ? di.get('fill') : (di?.fill || '#ffffff');
-         const currentStroke = di && typeof di.get === 'function' ? di.get('stroke') : (di?.stroke || '#000000');
-         document.getElementById('color-fill-input').value = currentFill !== 'undefined' ? currentFill : '#ffffff';
-         document.getElementById('color-stroke-input').value = currentStroke !== 'undefined' ? currentStroke : '#000000';
-
          const nodeData = state.data.nodes[state.selectedNodeId];
          const style = nodeData ? (nodeData.style || {}) : {};
          
-         document.getElementById('color-text-input').value = style.fontColor || '#000000';
          document.getElementById('font-family-select').value = style.fontFamily || '';
          document.getElementById('font-size-input').value = style.fontSize || '';
          
@@ -661,6 +658,9 @@
          const btnItal = document.getElementById('btn-font-italic');
          if(style.isBold) btnBold.classList.add('active'); else btnBold.classList.remove('active');
          if(style.isItalic) btnItal.classList.add('active'); else btnItal.classList.remove('active');
+
+         document.getElementById('line-style-select').value = style.lineStyle || '';
+         document.getElementById('line-width-select').value = style.lineWidth || '';
       },
 
       renderPalettes() {
@@ -729,7 +729,7 @@
           if (selection.length === 1 && selection[0].type !== 'bpmn:Process') {
             let element = selection[0];
             
-            // Permite edição de estilos mesmo se o usuário clicar no texto flutuante da seta
+            // Garantir que a formatação vai pro elemento root mesmo se o usuário clicar no texto flutuante
             if (element.type === 'label' && element.labelTarget) {
                 element = element.labelTarget;
             }
@@ -920,11 +920,6 @@
           document.getElementById('styling-accordion').classList.toggle('expanded');
         });
 
-        // Listeners dos inputs nativos de cor
-        document.getElementById('color-fill-input').addEventListener('change', (e) => engine.applyColorFromInput('fill', e.target.value));
-        document.getElementById('color-stroke-input').addEventListener('change', (e) => engine.applyColorFromInput('stroke', e.target.value));
-        document.getElementById('color-text-input').addEventListener('change', (e) => engine.applyColorFromInput('text', e.target.value));
-
         document.getElementById('btn-reset-style').addEventListener('click', () => engine.resetNodeStyles());
         
         document.getElementById('font-family-select').addEventListener('change', (e) => engine.updateNodeStyle('fontFamily', e.target.value));
@@ -938,6 +933,9 @@
            const btn = e.target; btn.classList.toggle('active');
            engine.updateNodeStyle('isItalic', btn.classList.contains('active'));
         });
+
+        document.getElementById('line-style-select').addEventListener('change', (e) => engine.updateNodeStyle('lineStyle', e.target.value));
+        document.getElementById('line-width-select').addEventListener('change', (e) => engine.updateNodeStyle('lineWidth', e.target.value));
     }
 
     window.addEventListener('DOMContentLoaded', () => {
