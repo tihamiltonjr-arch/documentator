@@ -203,6 +203,20 @@
                 <label>Nome do Nó de Exibição:</label>
                 <input type="text" id="node-name-input" class="full-width">
               </div>
+              
+              <div class="studio-form-group" style="display: flex; gap: 10px; margin-top: 15px;">
+                <div style="flex: 1;">
+                  <label>Cor de Fundo:</label>
+                  <input type="color" id="node-fill-color" class="full-width" style="height: 32px; padding: 2px; cursor: pointer;">
+                </div>
+                <div style="flex: 1;">
+                  <label>Cor da Borda:</label>
+                  <input type="color" id="node-stroke-color" class="full-width" style="height: 32px; padding: 2px; cursor: pointer;">
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                  <button class="studio-btn" id="btn-reset-color" title="Restaurar Cores Padrão" style="background: #64748b; padding: 0 10px;">↺</button>
+                </div>
+              </div>
 
               <div style="border-top: 1px solid #e2e8f0; margin: 15px 0;"></div>
 
@@ -329,12 +343,10 @@
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            // Escala 2x para Alta Resolução (Retina/Impressão)
             canvas.width = img.width * 2;
             canvas.height = img.height * 2;
             const ctx = canvas.getContext('2d');
             
-            // Fundo Branco (Padrão PNG transparente do SVG)
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
@@ -557,6 +569,19 @@
     };
 
     const engine = {
+      updateNodeColor(fill, stroke) {
+        if(state.isReadOnly || !state.selectedNodeId) return;
+        const modeling = bpmnModeler.get('modeling');
+        const element = elementRegistry.get(state.selectedNodeId);
+        
+        if(element) {
+          modeling.setColor([element], {
+            fill: fill || undefined,
+            stroke: stroke || undefined
+          });
+        }
+      },
+
       handleRootSet(rootElement) {
         if(!rootElement) return;
         if(!this.knownRoots) this.knownRoots = {};
@@ -656,6 +681,23 @@
             const nameInput = document.getElementById('node-name-input');
             if (document.activeElement !== nameInput) {
                 nameInput.value = element.businessObject.name || '';
+            }
+
+            const di = element.businessObject.di;
+            const currentFill = di && typeof di.get === 'function' ? di.get('fill') : (di?.fill || '#ffffff');
+            const currentStroke = di && typeof di.get === 'function' ? di.get('stroke') : (di?.stroke || '#000000');
+            
+            document.getElementById('node-fill-color').value = currentFill !== 'undefined' ? currentFill : '#ffffff';
+            document.getElementById('node-stroke-color').value = currentStroke !== 'undefined' ? currentStroke : '#000000';
+            
+            if (state.isReadOnly) {
+              document.getElementById('node-fill-color').disabled = true;
+              document.getElementById('node-stroke-color').disabled = true;
+              document.getElementById('btn-reset-color').disabled = true;
+            } else {
+              document.getElementById('node-fill-color').disabled = false;
+              document.getElementById('node-stroke-color').disabled = false;
+              document.getElementById('btn-reset-color').disabled = false;
             }
 
             engine.renderNodeEditor();
@@ -947,6 +989,18 @@
         nodeNameInput.addEventListener('keyup', (e) => engine.updateNodeName(e.target.value));
         
         document.getElementById('node-layer-select').addEventListener('change', (e) => engine.assignNodeToLayer(e.target.value));
+
+        const fillInput = document.getElementById('node-fill-color');
+        const strokeInput = document.getElementById('node-stroke-color');
+        
+        fillInput.addEventListener('change', (e) => engine.updateNodeColor(e.target.value, strokeInput.value));
+        strokeInput.addEventListener('change', (e) => engine.updateNodeColor(fillInput.value, e.target.value));
+        
+        document.getElementById('btn-reset-color').addEventListener('click', () => {
+            engine.updateNodeColor(null, null);
+            fillInput.value = '#ffffff';
+            strokeInput.value = '#000000';
+        });
     }
 
     window.addEventListener('DOMContentLoaded', () => {
