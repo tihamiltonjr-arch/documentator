@@ -109,6 +109,13 @@
     #app-workspace .studio-form-group label { display: block; font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 6px; text-transform: uppercase; }
 
     .bpmn-layer-hidden { opacity: 0 !important; pointer-events: none !important; }
+
+    /* CSS para a Paleta de Cores */
+    .color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 5px 0; }
+    .color-swatch { aspect-ratio: 1; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.1s, border-color 0.1s; box-shadow: inset 0 1px 2px rgba(255,255,255,0.3); }
+    .color-swatch:hover { transform: scale(1.15); border-color: #3b82f6; z-index: 2; position: relative; }
+    .color-swatch.empty { background: transparent; border: 1px dashed #cbd5e1; cursor: default; box-shadow: none; }
+    .color-swatch.empty:hover { transform: none; border-color: #cbd5e1; }
   </style>
 </head>
 <body>
@@ -204,18 +211,23 @@
                 <input type="text" id="node-name-input" class="full-width">
               </div>
               
-              <div class="studio-form-group" style="display: flex; gap: 10px; margin-top: 15px;">
-                <div style="flex: 1;">
-                  <label>Cor de Fundo:</label>
-                  <input type="color" id="node-fill-color" class="full-width" style="height: 32px; padding: 2px; cursor: pointer;">
+              <!-- NOVO BLOCO DE CORES (PALETA) -->
+              <div class="studio-form-group" style="margin-top: 20px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label style="margin:0; color: #334155;">Pintura do Elemento</label>
+                  <select id="color-target-select" style="height: 24px; padding: 0 5px; font-size: 11px; width: 85px; cursor: pointer;">
+                    <option value="fill">Fundo</option>
+                    <option value="stroke">Borda</option>
+                  </select>
                 </div>
-                <div style="flex: 1;">
-                  <label>Cor da Borda:</label>
-                  <input type="color" id="node-stroke-color" class="full-width" style="height: 32px; padding: 2px; cursor: pointer;">
-                </div>
-                <div style="display: flex; align-items: flex-end;">
-                  <button class="studio-btn" id="btn-reset-color" title="Restaurar Cores Padrão" style="background: #64748b; padding: 0 10px;">↺</button>
-                </div>
+                
+                <div style="font-size: 10px; font-weight: bold; color: #94a3b8; margin-top: 10px;">TONS PASTEL</div>
+                <div id="palette-standard" class="color-grid"></div>
+                
+                <div style="font-size: 10px; font-weight: bold; color: #94a3b8; margin-top: 10px;">RECENTES</div>
+                <div id="palette-recent" class="color-grid"></div>
+                
+                <button class="studio-btn full-width" id="btn-reset-color" style="margin-top: 12px; height: 28px; background: #cbd5e1; color: #334155;">↺ Restaurar Padrão do Nó</button>
               </div>
 
               <div style="border-top: 1px solid #e2e8f0; margin: 15px 0;"></div>
@@ -238,6 +250,11 @@
     const SUPABASE_URL = "https://iujbehgouxhhmbdltbwm.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1amJlaGdvdXhoaG1iZGx0YndtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTY3Njc2MiwiZXhwIjoyMDk3MjUyNzYyfQ.ADEsRjGotcV7vaiTt89o67j5hKFkCtemisVr31SUJA0";
 
+    const PASTEL_COLORS = [
+      '#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9', '#B5EAD7', '#C4FAF8',
+      '#BAE1FF', '#AEC6CF', '#E0BBE4', '#E8BAFF', '#FFC4E1', '#F1CBFF'
+    ];
+
     const PRISTINE_DATA = {
       xml: `<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -249,7 +266,11 @@
       nodes: { 'StartEvent_1': { layerId: 'layer_negocio', data: {} } }
     };
 
-    const state = { isReadOnly: false, fileHandle: null, dbId: null, dbName: null, saveTimeout: null, selectedNodeId: null, data: null };
+    const state = { 
+      isReadOnly: false, fileHandle: null, dbId: null, dbName: null, 
+      saveTimeout: null, selectedNodeId: null, data: null, 
+      recentColors: [] 
+    };
     let bpmnModeler, canvas, eventBus, elementRegistry;
 
     const Supabase = {
@@ -504,10 +525,14 @@
           saveStatus.classList.add('readonly'); saveStatus.innerHTML = "<span>🔒</span> Visualização";
           document.getElementById('node-name-input').disabled = true;
           document.getElementById('node-layer-select').disabled = true;
+          document.getElementById('color-target-select').disabled = true;
+          document.getElementById('btn-reset-color').disabled = true;
         } else {
           modeBadge.innerText = "Edição"; modeBadge.style.background = "#ef4444";
           document.getElementById('node-name-input').disabled = false;
           document.getElementById('node-layer-select').disabled = false;
+          document.getElementById('color-target-select').disabled = false;
+          document.getElementById('btn-reset-color').disabled = false;
           this.updateSaveUI(false);
         }
 
@@ -534,6 +559,7 @@
 
           engine.syncMissingNodes(); 
           engine.renderLayersUI();
+          engine.renderPalettes();
         });
         resizerEngine.init();
       },
@@ -582,6 +608,65 @@
         }
       },
 
+      applyColorFromPalette(newColor) {
+        if(state.isReadOnly || !state.selectedNodeId) return;
+        const target = document.getElementById('color-target-select').value;
+        const element = elementRegistry.get(state.selectedNodeId);
+        const di = element.businessObject.di;
+        
+        let fill = di && typeof di.get === 'function' ? di.get('fill') : di?.fill;
+        let stroke = di && typeof di.get === 'function' ? di.get('stroke') : di?.stroke;
+        
+        if (target === 'fill') fill = newColor;
+        else stroke = newColor;
+        
+        this.updateNodeColor(fill, stroke);
+        this.addRecentColor(newColor);
+      },
+
+      addRecentColor(color) {
+        if (!color) return;
+        color = color.toUpperCase();
+        state.recentColors = state.recentColors.filter(c => c !== color);
+        state.recentColors.unshift(color);
+        if (state.recentColors.length > 12) state.recentColors.pop();
+        
+        try { localStorage.setItem('doc_recent_colors', JSON.stringify(state.recentColors)); } catch(e){}
+        this.renderPalettes();
+      },
+
+      renderPalettes() {
+        const pStd = document.getElementById('palette-standard');
+        const pRec = document.getElementById('palette-recent');
+        pStd.innerHTML = ''; pRec.innerHTML = '';
+
+        PASTEL_COLORS.forEach(color => {
+          const swatch = document.createElement('div');
+          swatch.className = 'color-swatch';
+          swatch.style.backgroundColor = color;
+          swatch.title = color;
+          swatch.addEventListener('click', () => {
+             if(!state.isReadOnly) engine.applyColorFromPalette(color);
+          });
+          pStd.appendChild(swatch);
+        });
+
+        for (let i = 0; i < 12; i++) {
+          const swatch = document.createElement('div');
+          if (state.recentColors[i]) {
+            swatch.className = 'color-swatch';
+            swatch.style.backgroundColor = state.recentColors[i];
+            swatch.title = state.recentColors[i];
+            swatch.addEventListener('click', () => {
+                if(!state.isReadOnly) engine.applyColorFromPalette(state.recentColors[i]);
+            });
+          } else {
+            swatch.className = 'color-swatch empty';
+          }
+          pRec.appendChild(swatch);
+        }
+      },
+
       handleRootSet(rootElement) {
         if(!rootElement) return;
         if(!this.knownRoots) this.knownRoots = {};
@@ -605,12 +690,10 @@
         while(currentBO) {
           if (currentBO.$type !== 'bpmn:Definitions') {
              let nodeName = currentBO.name || currentBO.id;
-             
              if (currentBO.$type === 'bpmn:Process' && currentBO.$parent && currentBO.$parent.$type === 'bpmn:Definitions') {
                  const rawName = state.dbId ? state.dbName : (state.fileHandle ? state.fileHandle.name : 'Fluxo Principal');
                  nodeName = rawName.replace('.json', '');
              }
-             
              chain.unshift({ id: currentBO.id, name: nodeName });
           }
           currentBO = currentBO.$parent;
@@ -618,28 +701,20 @@
 
         chain.forEach((crumb, index) => {
           if (index > 0) {
-            const sep = document.createElement('span');
-            sep.innerText = ' › ';
-            sep.style.color = '#94a3b8';
+            const sep = document.createElement('span'); sep.innerText = ' › '; sep.style.color = '#94a3b8';
             container.appendChild(sep);
           }
 
           const link = document.createElement('span');
-          link.innerText = crumb.name;
-          link.style.cursor = 'pointer';
-          link.style.fontSize = '12px';
+          link.innerText = crumb.name; link.style.cursor = 'pointer'; link.style.fontSize = '12px';
 
           if(index === chain.length - 1) {
-            link.style.fontWeight = '700';
-            link.style.color = '#0f172a';
+            link.style.fontWeight = '700'; link.style.color = '#0f172a';
           } else {
-            link.style.fontWeight = '500';
-            link.style.color = '#3b82f6';
+            link.style.fontWeight = '500'; link.style.color = '#3b82f6';
             link.addEventListener('click', () => {
               const targetRoot = this.knownRoots[crumb.id];
-              if(targetRoot) {
-                bpmnModeler.get('canvas').setRootElement(targetRoot);
-              }
+              if(targetRoot) bpmnModeler.get('canvas').setRootElement(targetRoot);
             });
           }
           container.appendChild(link);
@@ -683,23 +758,6 @@
                 nameInput.value = element.businessObject.name || '';
             }
 
-            const di = element.businessObject.di;
-            const currentFill = di && typeof di.get === 'function' ? di.get('fill') : (di?.fill || '#ffffff');
-            const currentStroke = di && typeof di.get === 'function' ? di.get('stroke') : (di?.stroke || '#000000');
-            
-            document.getElementById('node-fill-color').value = currentFill !== 'undefined' ? currentFill : '#ffffff';
-            document.getElementById('node-stroke-color').value = currentStroke !== 'undefined' ? currentStroke : '#000000';
-            
-            if (state.isReadOnly) {
-              document.getElementById('node-fill-color').disabled = true;
-              document.getElementById('node-stroke-color').disabled = true;
-              document.getElementById('btn-reset-color').disabled = true;
-            } else {
-              document.getElementById('node-fill-color').disabled = false;
-              document.getElementById('node-stroke-color').disabled = false;
-              document.getElementById('btn-reset-color').disabled = false;
-            }
-
             engine.renderNodeEditor();
           } else {
             state.selectedNodeId = null;
@@ -711,9 +769,7 @@
         eventBus.on('element.changed', function(e) {
           if (state.selectedNodeId === e.element.id) {
             const nameInput = document.getElementById('node-name-input');
-            if (document.activeElement !== nameInput) {
-                nameInput.value = e.element.businessObject.name || '';
-            }
+            if (document.activeElement !== nameInput) nameInput.value = e.element.businessObject.name || '';
           }
         });
       },
@@ -783,8 +839,7 @@
       },
 
       renderLayersUI() {
-        const container = document.getElementById('layers-container'); 
-        container.innerHTML = ''; 
+        const container = document.getElementById('layers-container'); container.innerHTML = ''; 
         
         Object.values(state.data.layers).forEach(layer => {
           const isActive = state.data.activeLayerId === layer.id;
@@ -794,38 +849,30 @@
           card.style.borderLeft = `4px solid ${isActive ? '#3b82f6' : '#e2e8f0'}`;
           card.addEventListener('click', () => engine.setActiveLayer(layer.id));
 
-          const header = document.createElement('div');
-          header.className = 'studio-layer-header';
+          const header = document.createElement('div'); header.className = 'studio-layer-header';
           
-          const title = document.createElement('span');
-          title.className = 'studio-layer-name';
+          const title = document.createElement('span'); title.className = 'studio-layer-name';
           title.innerText = `${layer.name} ${isActive ? '🔵' : ''}`;
           
-          const controls = document.createElement('div');
-          controls.className = 'studio-layer-controls';
+          const controls = document.createElement('div'); controls.className = 'studio-layer-controls';
           controls.addEventListener('click', (e) => e.stopPropagation());
 
           const lblFix = document.createElement('label');
           const cbFix = document.createElement('input');
-          cbFix.type = 'checkbox';
-          cbFix.checked = layer.isFixed;
+          cbFix.type = 'checkbox'; cbFix.checked = layer.isFixed;
           if(state.isReadOnly) cbFix.disabled = true;
           cbFix.addEventListener('change', (e) => engine.toggleFixed(layer.id, e.target.checked));
-          lblFix.appendChild(cbFix);
-          lblFix.appendChild(document.createTextNode(' Fixa'));
+          lblFix.appendChild(cbFix); lblFix.appendChild(document.createTextNode(' Fixa'));
           controls.appendChild(lblFix);
 
           if(layer.id !== 'layer_negocio' && !state.isReadOnly) {
               const btnDel = document.createElement('button');
-              btnDel.className = 'studio-btn danger';
-              btnDel.innerText = 'X';
+              btnDel.className = 'studio-btn danger'; btnDel.innerText = 'X';
               btnDel.addEventListener('click', () => engine.removeLayer(layer.id));
               controls.appendChild(btnDel);
           }
 
-          header.appendChild(title);
-          header.appendChild(controls);
-          card.appendChild(header);
+          header.appendChild(title); header.appendChild(controls); card.appendChild(header);
 
           const fieldsBox = document.createElement('div');
           fieldsBox.style.marginTop = '10px'; fieldsBox.style.borderTop = '1px solid #f1f5f9'; fieldsBox.style.paddingTop = '10px';
@@ -838,8 +885,7 @@
 
           layer.fields.forEach(f => {
               const fName = f.name; const fType = f.type || 'text'; const displayType = fType === 'textarea' ? 'Longo' : 'Curto';
-              const fTag = document.createElement('div');
-              fTag.className = 'studio-field-tag';
+              const fTag = document.createElement('div'); fTag.className = 'studio-field-tag';
               fTag.innerHTML = `<span>${fName} <small style="color:#94a3b8; margin-left: 4px;">(${displayType})</small></span>`;
               
               if(!state.isReadOnly) {
@@ -853,30 +899,24 @@
           });
 
           if(!state.isReadOnly) {
-              const inGrp = document.createElement('div');
-              inGrp.className = 'studio-input-group';
-              inGrp.style.marginTop = '10px';
+              const inGrp = document.createElement('div'); inGrp.className = 'studio-input-group'; inGrp.style.marginTop = '10px';
 
               const inpName = document.createElement('input');
               inpName.type = 'text'; inpName.id = `new-field-name-${layer.id}`; inpName.placeholder = 'Novo campo...'; inpName.style.width = '40%';
               inpName.addEventListener('keydown', (e) => { e.stopPropagation(); if(e.key === 'Enter') engine.addField(layer.id); });
 
-              const selType = document.createElement('select');
-              selType.id = `new-field-type-${layer.id}`; selType.style.width = '40%';
+              const selType = document.createElement('select'); selType.id = `new-field-type-${layer.id}`; selType.style.width = '40%';
               const opt1 = document.createElement('option'); opt1.value = 'text'; opt1.innerText = 'Curto';
               const opt2 = document.createElement('option'); opt2.value = 'textarea'; opt2.innerText = 'Longo';
               selType.appendChild(opt1); selType.appendChild(opt2);
 
-              const btnAdd = document.createElement('button');
-              btnAdd.className = 'studio-btn'; btnAdd.innerText = '+';
+              const btnAdd = document.createElement('button'); btnAdd.className = 'studio-btn'; btnAdd.innerText = '+';
               btnAdd.addEventListener('click', () => engine.addField(layer.id));
 
-              inGrp.appendChild(inpName); inGrp.appendChild(selType); inGrp.appendChild(btnAdd);
-              fieldsBox.appendChild(inGrp);
+              inGrp.appendChild(inpName); inGrp.appendChild(selType); inGrp.appendChild(btnAdd); fieldsBox.appendChild(inGrp);
           }
 
-          card.appendChild(fieldsBox);
-          container.appendChild(card);
+          card.appendChild(fieldsBox); container.appendChild(card);
         });
       },
 
@@ -884,8 +924,7 @@
         const nodeId = state.selectedNodeId; const nodeData = state.data.nodes[nodeId];
         if (!nodeData) return;
 
-        const select = document.getElementById('node-layer-select');
-        select.innerHTML = '';
+        const select = document.getElementById('node-layer-select'); select.innerHTML = '';
         Object.values(state.data.layers).forEach(l => {
             const opt = document.createElement('option'); opt.value = l.id; opt.innerText = l.name;
             if(nodeData.layerId === l.id) opt.selected = true;
@@ -893,8 +932,7 @@
         });
 
         const layerFields = state.data.layers[nodeData.layerId]?.fields || [];
-        const fieldsContainer = document.getElementById('node-dynamic-fields');
-        fieldsContainer.innerHTML = '';
+        const fieldsContainer = document.getElementById('node-dynamic-fields'); fieldsContainer.innerHTML = '';
         
         if(layerFields.length === 0) { 
             fieldsContainer.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">Esta layer não possui campos configurados.</span>'; 
@@ -902,13 +940,10 @@
         }
 
         layerFields.forEach(f => {
-          const fName = f.name; const fType = f.type || 'text';
-          const val = nodeData.data[fName] || '';
+          const fName = f.name; const fType = f.type || 'text'; const val = nodeData.data[fName] || '';
           
-          const grp = document.createElement('div');
-          grp.className = 'studio-form-group';
-          const lbl = document.createElement('label'); lbl.innerText = fName;
-          grp.appendChild(lbl);
+          const grp = document.createElement('div'); grp.className = 'studio-form-group';
+          const lbl = document.createElement('label'); lbl.innerText = fName; grp.appendChild(lbl);
 
           let inputEl;
           if (fType === 'textarea') { inputEl = document.createElement('textarea'); inputEl.rows = 3; } 
@@ -921,8 +956,7 @@
           inputEl.addEventListener('keyup', (e) => engine.updateNodeData(fName, e.target.value));
           inputEl.addEventListener('change', (e) => engine.updateNodeData(fName, e.target.value));
 
-          grp.appendChild(inputEl);
-          fieldsContainer.appendChild(grp);
+          grp.appendChild(inputEl); fieldsContainer.appendChild(grp);
         });
       },
 
@@ -990,20 +1024,17 @@
         
         document.getElementById('node-layer-select').addEventListener('change', (e) => engine.assignNodeToLayer(e.target.value));
 
-        const fillInput = document.getElementById('node-fill-color');
-        const strokeInput = document.getElementById('node-stroke-color');
-        
-        fillInput.addEventListener('change', (e) => engine.updateNodeColor(e.target.value, strokeInput.value));
-        strokeInput.addEventListener('change', (e) => engine.updateNodeColor(fillInput.value, e.target.value));
-        
         document.getElementById('btn-reset-color').addEventListener('click', () => {
-            engine.updateNodeColor(null, null);
-            fillInput.value = '#ffffff';
-            strokeInput.value = '#000000';
+            engine.updateNodeColor(undefined, undefined);
         });
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+        try {
+          const savedColors = localStorage.getItem('doc_recent_colors');
+          if(savedColors) state.recentColors = JSON.parse(savedColors);
+        } catch(e) {}
+        
         initStaticListeners();
         app.applyEmojiFavicon();
         Supabase.init();
