@@ -112,9 +112,9 @@
 
     .bpmn-layer-hidden { opacity: 0 !important; pointer-events: none !important; }
 
-    /* Estilização Colapsável / Paleta */
+    /* Estilização Colapsável / Paleta (18 Cores) */
     .color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 5px 0; }
-    .color-swatch { aspect-ratio: 1; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.1s, border-color 0.1s; box-shadow: inset 0 1px 2px rgba(255,255,255,0.3); }
+    .color-swatch { aspect-ratio: 1; border-radius: 6px; border: 1px solid rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.1s, border-color 0.1s; box-shadow: inset 0 1px 2px rgba(255,255,255,0.3); }
     .color-swatch:hover { transform: scale(1.15); border-color: #3b82f6; z-index: 2; position: relative; }
 
     .collapsible-container { background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 15px; overflow: hidden; }
@@ -204,7 +204,7 @@
           <div class="panel-inner-right">
             <div class="studio-section" id="node-empty-state">
               <span class="studio-title">Propriedades do Nó</span>
-              <p style="font-size: 12px; color: #94a3b8; margin: 0;">Selecione um elemento no diagrama.</p>
+              <p style="font-size: 12px; color: #94a3b8; margin: 0;">Selecione um elemento ou seta no diagrama.</p>
             </div>
             
             <div class="studio-section" id="node-editor-state" style="display: none;">
@@ -223,16 +223,33 @@
                 </div>
                 
                 <div class="collapsible-content">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <label style="margin:0; font-size: 10px;">CORES BPMN</label>
-                    <select id="color-target-select" style="height: 22px; padding: 0 5px; font-size: 11px; width: 85px;">
+                  
+                  <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                    <div style="flex: 1; text-align: center;">
+                      <label style="font-size: 9px; display: block; margin-bottom: 3px;">FUNDO</label>
+                      <input type="color" id="color-fill-input" class="full-width" style="height: 28px; padding: 1px; cursor: pointer;">
+                    </div>
+                    <div style="flex: 1; text-align: center;">
+                      <label style="font-size: 9px; display: block; margin-bottom: 3px;">BORDA</label>
+                      <input type="color" id="color-stroke-input" class="full-width" style="height: 28px; padding: 1px; cursor: pointer;">
+                    </div>
+                    <div style="flex: 1; text-align: center;">
+                      <label style="font-size: 9px; display: block; margin-bottom: 3px;">TEXTO</label>
+                      <input type="color" id="color-text-input" class="full-width" style="height: 28px; padding: 1px; cursor: pointer;">
+                    </div>
+                  </div>
+
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                    <label style="margin:0; font-size: 10px;">PINTURA RÁPIDA NO(A):</label>
+                    <select id="color-target-select" style="height: 22px; padding: 0 5px; font-size: 11px; width: 85px; cursor: pointer;">
                       <option value="fill">Fundo</option>
                       <option value="stroke">Borda</option>
+                      <option value="text">Texto</option>
                     </select>
                   </div>
                   <div id="palette-standard" class="color-grid" style="margin-bottom: 15px;"></div>
 
-                  <label style="margin:0 0 5px 0; font-size: 10px;">TIPOGRAFIA</label>
+                  <label style="margin:0 0 5px 0; font-size: 10px;">FONTE E TAMANHO</label>
                   <select id="font-family-select" class="full-width" style="margin-bottom: 8px; font-size: 12px; height: 28px;">
                     <option value="">Sistema (Padrão)</option>
                     <option value="Arial, sans-serif">Arial</option>
@@ -242,13 +259,12 @@
                   </select>
                   
                   <div style="display: flex; gap: 5px; align-items: center;">
-                    <input type="number" id="font-size-input" title="Tamanho" style="width: 60px; height: 28px; padding: 2px 5px; text-align: center;" min="8" max="48" placeholder="12px">
-                    <input type="color" id="font-color-input" title="Cor da Fonte" style="width: 40px; height: 28px; padding: 1px; cursor: pointer;">
+                    <input type="number" id="font-size-input" title="Tamanho Base (Padrão 12)" style="width: 100%; height: 28px; padding: 2px 5px; text-align: center;" min="8" max="48" placeholder="Tamanho (ex: 12)">
                     <button class="studio-btn toggle" id="btn-font-bold" title="Negrito" style="height: 28px; flex: 1;">B</button>
                     <button class="studio-btn toggle" id="btn-font-italic" title="Itálico" style="height: 28px; flex: 1; font-style: italic;">I</button>
                   </div>
 
-                  <button class="studio-btn full-width" id="btn-reset-style" style="margin-top: 15px; height: 28px; background: #cbd5e1; color: #334155;">↺ Resetar Estilos e Cores</button>
+                  <button class="studio-btn full-width" id="btn-reset-style" style="margin-top: 15px; height: 28px; background: #cbd5e1; color: #334155;">↺ Resetar Formatação</button>
                 </div>
               </div>
 
@@ -272,9 +288,11 @@
     const SUPABASE_URL = "https://iujbehgouxhhmbdltbwm.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1amJlaGdvdXhoaG1iZGx0YndtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTY3Njc2MiwiZXhwIjoyMDk3MjUyNzYyfQ.ADEsRjGotcV7vaiTt89o67j5hKFkCtemisVr31SUJA0";
 
-    const PASTEL_COLORS = [
-      '#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9', '#B5EAD7', '#C4FAF8',
-      '#BAE1FF', '#AEC6CF', '#E0BBE4', '#E8BAFF', '#FFC4E1', '#F1CBFF'
+    // Adicionado cores base e estendido para 18 opções
+    const PALETTE_COLORS = [
+      '#000000', '#FFFFFF', '#EF4444', '#10B981', '#3B82F6', '#F59E0B', // Cores Sólidas Base
+      '#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9', '#B5EAD7', '#C4FAF8', // Tons Pastel 1
+      '#BAE1FF', '#AEC6CF', '#E0BBE4', '#E8BAFF', '#FFC4E1', '#F1CBFF'  // Tons Pastel 2
     ];
 
     const PRISTINE_DATA = {
@@ -482,7 +500,7 @@
         this.applyEmojiFavicon();
         
         const modeBadge = document.getElementById('mode-display'); const saveStatus = document.getElementById('save-status');
-        const readOnlyInputs = ['node-name-input', 'node-layer-select', 'color-target-select', 'btn-reset-style', 'font-family-select', 'font-size-input', 'font-color-input', 'btn-font-bold', 'btn-font-italic'];
+        const readOnlyInputs = ['node-name-input', 'node-layer-select', 'color-target-select', 'btn-reset-style', 'font-family-select', 'font-size-input', 'btn-font-bold', 'btn-font-italic', 'color-fill-input', 'color-stroke-input', 'color-text-input'];
         
         if (state.isReadOnly) {
           modeBadge.innerText = "Read-Only"; modeBadge.style.background = "#64748b";
@@ -511,7 +529,7 @@
           engine.syncMissingNodes(); 
           engine.renderLayersUI();
           engine.renderPalettes();
-          engine.updateDynamicStyles(); // Render fonts CSS
+          engine.updateDynamicStyles();
         });
         resizerEngine.init();
       },
@@ -542,14 +560,31 @@
     };
 
     const engine = {
-      applyColorFromPalette(newColor) {
+      applyColorFromInput(target, newColor) {
         if(state.isReadOnly || !state.selectedNodeId) return;
+        if (target === 'text') {
+           this.updateNodeStyle('fontColor', newColor);
+        } else {
+           const element = elementRegistry.get(state.selectedNodeId);
+           if(!element) return;
+           bpmnModeler.get('modeling').setColor([element], { [target]: newColor });
+           
+           // Fix de proteção para o texto não ser acidentalmente repintado com a cor da nova borda
+           const nodeData = state.data.nodes[state.selectedNodeId];
+           if (!nodeData.style) nodeData.style = {};
+           if (!nodeData.style.fontColor) {
+               this.updateNodeStyle('fontColor', '#222222');
+               document.getElementById('color-text-input').value = '#222222';
+           }
+        }
+      },
+
+      applyColorFromPalette(newColor) {
         const target = document.getElementById('color-target-select').value;
-        const element = elementRegistry.get(state.selectedNodeId);
-        if(!element) return;
-        
-        // Passar apenas a key que está sendo modificada preserva o valor da outra na engine
-        bpmnModeler.get('modeling').setColor([element], { [target]: newColor });
+        this.applyColorFromInput(target, newColor);
+        if(target === 'fill') document.getElementById('color-fill-input').value = newColor;
+        if(target === 'stroke') document.getElementById('color-stroke-input').value = newColor;
+        if(target === 'text') document.getElementById('color-text-input').value = newColor;
       },
 
       updateNodeStyle(key, value) {
@@ -563,11 +598,8 @@
       resetNodeStyles() {
         if(state.isReadOnly || !state.selectedNodeId) return;
         const element = elementRegistry.get(state.selectedNodeId);
-        if(element) bpmnModeler.get('modeling').setColor([element], undefined); // Reseta BPMN cores
-        
-        if(state.data.nodes[state.selectedNodeId]) {
-           state.data.nodes[state.selectedNodeId].style = {}; // Reseta CSS Fontes
-        }
+        if(element) bpmnModeler.get('modeling').setColor([element], undefined);
+        if(state.data.nodes[state.selectedNodeId]) state.data.nodes[state.selectedNodeId].style = {};
         
         this.syncStyleEditor();
         this.updateDynamicStyles();
@@ -579,28 +611,51 @@
         Object.keys(state.data.nodes).forEach(nodeId => {
            const style = state.data.nodes[nodeId].style;
            if(style && Object.keys(style).length > 0) {
-              css += `g[data-element-id="${nodeId}"] .djs-label {\n`;
+              
+              // Cobre o elemento pai E os labels renderizados paralelamente nas setas (_label)
+              css += `g[data-element-id="${nodeId}"] text.djs-label, g[data-element-id="${nodeId}_label"] text.djs-label {\n`;
               if(style.fontFamily) css += `  font-family: ${style.fontFamily} !important;\n`;
-              if(style.fontSize) css += `  font-size: ${style.fontSize}px !important;\n`;
-              if(style.fontColor) css += `  fill: ${style.fontColor} !important;\n`;
-              if(style.isBold) css += `  font-weight: bold !important;\n`;
-              else css += `  font-weight: normal !important;\n`;
-              if(style.isItalic) css += `  font-style: italic !important;\n`;
-              else css += `  font-style: normal !important;\n`;
+              if(style.fontColor)  css += `  fill: ${style.fontColor} !important;\n`;
+              if(style.isBold)     css += `  font-weight: bold !important;\n`;
+              else                 css += `  font-weight: normal !important;\n`;
+              if(style.isItalic)   css += `  font-style: italic !important;\n`;
+              else                 css += `  font-style: normal !important;\n`;
+              
+              if(style.fontSize) {
+                 let scale = (parseFloat(style.fontSize) / 12).toFixed(2);
+                 if(scale !== "1.00" && scale > 0) {
+                    css += `  transform: scale(${scale}) !important;\n`;
+                    css += `  transform-origin: center !important;\n`;
+                    css += `  transform-box: fill-box !important;\n`; // Garante que a escala não quebre as setas
+                 }
+              }
               css += `}\n`;
+              
+              // Garante injeção profunda em tspans caso a engine trave
+              if(style.fontColor) {
+                  css += `g[data-element-id="${nodeId}"] text.djs-label tspan, g[data-element-id="${nodeId}_label"] text.djs-label tspan { fill: ${style.fontColor} !important; }\n`;
+              }
            }
         });
         document.getElementById('dynamic-node-styles').innerHTML = css;
       },
 
       syncStyleEditor() {
-         const nodeData = state.data.nodes[state.selectedNodeId];
-         if(!nodeData) return;
-         const style = nodeData.style || {};
+         const element = elementRegistry.get(state.selectedNodeId);
+         if(!element) return;
          
+         const di = element.businessObject.di;
+         const currentFill = di && typeof di.get === 'function' ? di.get('fill') : (di?.fill || '#ffffff');
+         const currentStroke = di && typeof di.get === 'function' ? di.get('stroke') : (di?.stroke || '#000000');
+         document.getElementById('color-fill-input').value = currentFill !== 'undefined' ? currentFill : '#ffffff';
+         document.getElementById('color-stroke-input').value = currentStroke !== 'undefined' ? currentStroke : '#000000';
+
+         const nodeData = state.data.nodes[state.selectedNodeId];
+         const style = nodeData ? (nodeData.style || {}) : {};
+         
+         document.getElementById('color-text-input').value = style.fontColor || '#000000';
          document.getElementById('font-family-select').value = style.fontFamily || '';
          document.getElementById('font-size-input').value = style.fontSize || '';
-         document.getElementById('font-color-input').value = style.fontColor || '#000000';
          
          const btnBold = document.getElementById('btn-font-bold');
          const btnItal = document.getElementById('btn-font-italic');
@@ -610,7 +665,7 @@
 
       renderPalettes() {
         const pStd = document.getElementById('palette-standard'); pStd.innerHTML = '';
-        PASTEL_COLORS.forEach(color => {
+        PALETTE_COLORS.forEach(color => {
           const swatch = document.createElement('div'); swatch.className = 'color-swatch';
           swatch.style.backgroundColor = color; swatch.title = color;
           swatch.addEventListener('click', () => { if(!state.isReadOnly) engine.applyColorFromPalette(color); });
@@ -672,8 +727,14 @@
         eventBus.on('selection.changed', function(e) {
           const selection = e.newSelection;
           if (selection.length === 1 && selection[0].type !== 'bpmn:Process') {
-            state.selectedNodeId = selection[0].id;
-            const element = selection[0];
+            let element = selection[0];
+            
+            // Permite edição de estilos mesmo se o usuário clicar no texto flutuante da seta
+            if (element.type === 'label' && element.labelTarget) {
+                element = element.labelTarget;
+            }
+            
+            state.selectedNodeId = element.id;
             
             document.getElementById('node-empty-state').style.display = 'none';
             document.getElementById('node-editor-state').style.display = 'block';
@@ -855,17 +916,19 @@
         nodeNameInput.addEventListener('keyup', (e) => engine.updateNodeName(e.target.value));
         document.getElementById('node-layer-select').addEventListener('change', (e) => engine.assignNodeToLayer(e.target.value));
 
-        // Listeners do Accordion
         document.getElementById('btn-toggle-styling').addEventListener('click', () => {
           document.getElementById('styling-accordion').classList.toggle('expanded');
         });
 
-        // Listeners de Tipografia e Reset
+        // Listeners dos inputs nativos de cor
+        document.getElementById('color-fill-input').addEventListener('change', (e) => engine.applyColorFromInput('fill', e.target.value));
+        document.getElementById('color-stroke-input').addEventListener('change', (e) => engine.applyColorFromInput('stroke', e.target.value));
+        document.getElementById('color-text-input').addEventListener('change', (e) => engine.applyColorFromInput('text', e.target.value));
+
         document.getElementById('btn-reset-style').addEventListener('click', () => engine.resetNodeStyles());
         
         document.getElementById('font-family-select').addEventListener('change', (e) => engine.updateNodeStyle('fontFamily', e.target.value));
         document.getElementById('font-size-input').addEventListener('change', (e) => engine.updateNodeStyle('fontSize', e.target.value));
-        document.getElementById('font-color-input').addEventListener('change', (e) => engine.updateNodeStyle('fontColor', e.target.value));
         
         document.getElementById('btn-font-bold').addEventListener('click', (e) => {
            const btn = e.target; btn.classList.toggle('active');
