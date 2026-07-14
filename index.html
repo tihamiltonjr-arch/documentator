@@ -379,7 +379,6 @@ document.head.appendChild(link);
 async abrirArquivoDB(id, name) {
 try {
 const res = await Supabase.fetchApi(`bpmn_diagrams?id=eq.${id}&select=content`);
-// Correção Crítica 1: Desestruturação de Array ou extração segura do primeiro índice
 state.data = Array.isArray(res) && res.length > 0 ? res[0].content : res.content; 
 if(!state.data) throw new Error("Registro vazio ou formato incorreto");
 
@@ -633,8 +632,9 @@ if (!state.data.nodes[el.id]) { state.data.nodes[el.id] = { layerId: state.data.
 }
 eventBus.on('selection.changed', function(e) {
 const selection = e.newSelection;
-if (selection.length === 1 && selection.type !== 'bpmn:Process') {
-let element = selection;
+// CORREÇÃO CRÍTICA APLICADA: e.newSelection é um Array. Precisamos validar a tipagem do índice 0.
+if (selection.length === 1 && selection[0].type !== 'bpmn:Process') {
+let element = selection[0];
 if (element.type === 'label' && element.labelTarget) {
 element = element.labelTarget;
 }
@@ -711,7 +711,7 @@ if(state.isReadOnly) cbFix.disabled = true; cbFix.addEventListener('change', (e)
 lblFix.appendChild(cbFix); lblFix.appendChild(document.createTextNode(' Fixa')); controls.appendChild(lblFix);
 if(layer.id !== 'layer_negocio' && !state.isReadOnly) {
 const btnDel = document.createElement('button'); btnDel.className = 'studio-btn danger'; btnDel.innerText = 'X';
-btnDel.dataset.id = layer.id; // Correção Crítica 2: Binding robusto de ID em dataset para uso do updateVisibility()
+btnDel.dataset.id = layer.id;
 btnDel.addEventListener('click', () => engine.removeLayer(layer.id)); controls.appendChild(btnDel);
 }
 header.appendChild(title); header.appendChild(controls); card.appendChild(header);
@@ -755,7 +755,6 @@ const lbl = document.createElement('label'); lbl.innerText = f.name; grp.appendC
 let inputEl; if (f.type === 'textarea') { inputEl = document.createElement('textarea'); inputEl.rows = 3; } else { inputEl = document.createElement('input'); inputEl.type = 'text'; }
 inputEl.value = val; if(state.isReadOnly) inputEl.disabled = true;
 inputEl.addEventListener('keydown', (e) => e.stopPropagation());
-// Correção 3: Substituição do keyup massivo por input limpo
 inputEl.addEventListener('input', (e) => engine.updateNodeData(f.name, e.target.value));
 grp.appendChild(inputEl); fieldsContainer.appendChild(grp);
 });
@@ -790,7 +789,6 @@ const cards = container.querySelectorAll('.studio-layer-card');
 cards.forEach(card => {
 const nameSpan = card.querySelector('.studio-layer-name');
 const cbFix = card.querySelector('input[type="checkbox"]');
-// Correção 2 Aplicada: Extração via dataset ao invés de Parse no EventListener global
 const btnDel = cbFix.closest('.studio-layer-controls').querySelector('.studio-btn');
 const id = btnDel ? btnDel.dataset.id : 'layer_negocio';
 
@@ -824,7 +822,6 @@ document.getElementById('btn-add-layer').addEventListener('click', () => engine.
 document.getElementById('new-layer-name').addEventListener('keydown', (e) => { e.stopPropagation(); if(e.key === 'Enter') engine.addLayer(); });
 const nodeNameInput = document.getElementById('node-name-input');
 nodeNameInput.addEventListener('keydown', (e) => e.stopPropagation());
-// Correção 3: Substituição do keyup massivo por input limpo para o nome do nó
 nodeNameInput.addEventListener('input', (e) => engine.updateNodeName(e.target.value));
 document.getElementById('node-layer-select').addEventListener('change', (e) => engine.assignNodeToLayer(e.target.value));
 document.getElementById('btn-toggle-styling').addEventListener('click', () => {
