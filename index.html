@@ -265,7 +265,7 @@ const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KE
 if (method === 'POST' || method === 'PATCH') headers['Prefer'] = 'return=representation';
 const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, { method, headers, body: body ? JSON.stringify(body) : null });
 if(!res.ok) throw new Error("Erro na API Supabase: " + await res.text());
-return method === 'GET' || method === 'POST' ? await res.json() : null;
+return method === 'GET' || method === 'POST' || method === 'PATCH' ? await res.json() : null;
 },
 async loadList() {
 try {
@@ -379,17 +379,25 @@ document.head.appendChild(link);
 async abrirArquivoDB(id, name) {
 try {
 const res = await Supabase.fetchApi(`bpmn_diagrams?id=eq.${id}&select=content`);
-state.data = res.content; state.dbId = id; state.dbName = name; state.fileHandle = null; state.isReadOnly = false;
+// Correção Crítica 1: Desestruturação de Array ou extração segura do primeiro índice
+state.data = Array.isArray(res) && res.length > 0 ? res[0].content : res.content; 
+if(!state.data) throw new Error("Registro vazio ou formato incorreto");
+
+state.dbId = id; state.dbName = name; state.fileHandle = null; state.isReadOnly = false;
 if(!state.data.nodes) state.data.nodes = {};
 this.initWorkspace();
-} catch(e) { alert("Erro de rede ao ler registro Supabase."); }
+} catch(e) { 
+console.error(e);
+alert("Erro crítico: " + e.message); 
+}
 },
 async criarArquivoDB() {
 const name = prompt("Nome da nova topologia:"); if(!name) return;
 try {
-const row = await Supabase.createRecord(name, JSON.parse(JSON.stringify(PRISTINE_DATA)));
+const res = await Supabase.createRecord(name, JSON.parse(JSON.stringify(PRISTINE_DATA)));
+const row = Array.isArray(res) ? res[0] : res;
 await Supabase.loadList(); this.abrirArquivoDB(row.id, row.name);
-} catch(e) { alert("Injeção negada. Nome duplicado ou erro."); }
+} catch(e) { alert("Injeção negada. Nome duplicado ou erro de API."); }
 },
 toggleLeftPanel() {
 document.getElementById('left-panel').classList.toggle('collapsed');
@@ -703,6 +711,7 @@ if(state.isReadOnly) cbFix.disabled = true; cbFix.addEventListener('change', (e)
 lblFix.appendChild(cbFix); lblFix.appendChild(document.createTextNode(' Fixa')); controls.appendChild(lblFix);
 if(layer.id !== 'layer_negocio' && !state.isReadOnly) {
 const btnDel = document.createElement('button'); btnDel.className = 'studio-btn danger'; btnDel.innerText = 'X';
+btnDel.dataset.id = layer.id; // Correção Crítica 2: Binding robusto de ID em dataset para uso do updateVisibility()
 btnDel.addEventListener('click', () => engine.removeLayer(layer.id)); controls.appendChild(btnDel);
 }
 header.appendChild(title); header.appendChild(controls); card.appendChild(header);
@@ -746,8 +755,8 @@ const lbl = document.createElement('label'); lbl.innerText = f.name; grp.appendC
 let inputEl; if (f.type === 'textarea') { inputEl = document.createElement('textarea'); inputEl.rows = 3; } else { inputEl = document.createElement('input'); inputEl.type = 'text'; }
 inputEl.value = val; if(state.isReadOnly) inputEl.disabled = true;
 inputEl.addEventListener('keydown', (e) => e.stopPropagation());
-inputEl.addEventListener('keyup', (e) => engine.updateNodeData(f.name, e.target.value));
-inputEl.addEventListener('change', (e) => engine.updateNodeData(f.name, e.target.value));
+// Correção 3: Substituição do keyup massivo por input limpo
+inputEl.addEventListener('input', (e) => engine.updateNodeData(f.name, e.target.value));
 grp.appendChild(inputEl); fieldsContainer.appendChild(grp);
 });
 },
@@ -775,16 +784,16 @@ canvas.addMarker(element.id, 'bpmn-layer-hidden');
 canvas.removeMarker(element.id, 'bpmn-layer-hidden');
 }
 });
-// Atualiza a Label na Interface
 const container = document.getElementById('layers-container');
 if(!container) return;
 const cards = container.querySelectorAll('.studio-layer-card');
 cards.forEach(card => {
 const nameSpan = card.querySelector('.studio-layer-name');
 const cbFix = card.querySelector('input[type="checkbox"]');
-const id = cbFix.closest('.studio-layer-controls').querySelector('.studio-btn')
-? cbFix.closest('.studio-layer-controls').querySelector('.studio-btn').onclick.toString().match(/'(.*?)'/)[1]
-: 'layer_negocio';
+// Correção 2 Aplicada: Extração via dataset ao invés de Parse no EventListener global
+const btnDel = cbFix.closest('.studio-layer-controls').querySelector('.studio-btn');
+const id = btnDel ? btnDel.dataset.id : 'layer_negocio';
+
 if(nameSpan.innerText.includes('🔵')) {
 cbFix.nextSibling.textContent = ' Fixa (Em Foco)';
 cbFix.disabled = true;
@@ -815,7 +824,8 @@ document.getElementById('btn-add-layer').addEventListener('click', () => engine.
 document.getElementById('new-layer-name').addEventListener('keydown', (e) => { e.stopPropagation(); if(e.key === 'Enter') engine.addLayer(); });
 const nodeNameInput = document.getElementById('node-name-input');
 nodeNameInput.addEventListener('keydown', (e) => e.stopPropagation());
-nodeNameInput.addEventListener('keyup', (e) => engine.updateNodeName(e.target.value));
+// Correção 3: Substituição do keyup massivo por input limpo para o nome do nó
+nodeNameInput.addEventListener('input', (e) => engine.updateNodeName(e.target.value));
 document.getElementById('node-layer-select').addEventListener('change', (e) => engine.assignNodeToLayer(e.target.value));
 document.getElementById('btn-toggle-styling').addEventListener('click', () => {
 document.getElementById('styling-accordion').classList.toggle('expanded');
