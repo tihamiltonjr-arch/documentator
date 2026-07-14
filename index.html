@@ -83,7 +83,10 @@ padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13p
 #app-workspace .studio-field-tag span { display: flex; align-items: center; gap: 4px; }
 #app-workspace .studio-form-group { margin-bottom: 15px; }
 #app-workspace .studio-form-group label { display: block; font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 6px; text-transform: uppercase; }
-.bpmn-layer-hidden { opacity: 0 !important; pointer-events: none !important; }
+
+/* Correção Rigorosa contra Eventos Fantasmas em Nodes Ocultos */
+.bpmn-layer-hidden, .bpmn-layer-hidden * { opacity: 0 !important; pointer-events: none !important; }
+
 .color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 5px 0; }
 .color-swatch { aspect-ratio: 1; border-radius: 6px; border: 1px solid rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.1s, border-color 0.1s; box-shadow: inset 0 1px 2px rgba(255,255,255,0.3); }
 .color-swatch:hover { transform: scale(1.15); border-color: #3b82f6; z-index: 2; position: relative; }
@@ -162,17 +165,21 @@ padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13p
 <div id="right-panel">
 <div class="panel-inner-right">
 <div class="studio-section" id="node-empty-state">
-<span class="studio-title">Propriedades do Nó</span>
-<p style="font-size: 12px; color: #94a3b8; margin: 0;">Selecione um elemento ou seta no diagrama.</p>
+<span class="studio-title">Propriedades</span>
+<p style="font-size: 12px; color: #94a3b8; margin: 0;">Selecione um ou mais elementos no diagrama.</p>
 </div>
 <div class="studio-section" id="node-editor-state" style="display: none;">
 <span class="studio-title" id="node-type-label"></span>
 <strong id="node-id-label" style="font-size: 11px; color: #64748b; display: block; margin-bottom: 15px;"></strong>
+
+<div id="single-edit-only-top">
 <div class="studio-form-group">
 <label>Nome do Nó de Exibição:</label>
 <input type="text" id="node-name-input" class="full-width">
 </div>
-<div class="collapsible-container" id="styling-accordion">
+</div>
+
+<div class="collapsible-container expanded" id="styling-accordion">
 <div class="collapsible-header" id="btn-toggle-styling">
 <span>🎨 Estilização e Cores</span>
 <span class="chevron">▼</span>
@@ -190,24 +197,24 @@ padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13p
 <label style="margin:0 0 5px 0; font-size: 10px;">TEXTO E FONTE</label>
 <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 15px;">
 <select id="font-family-select" style="flex: 2; height: 28px; font-size: 11px;">
-<option value="">Padrão</option>
+<option value="">Padrão / Misto</option>
 <option value="Arial, sans-serif">Arial</option>
 <option value="'Courier New', Courier, monospace">Courier</option>
 <option value="'Times New Roman', Times, serif">Times</option>
 </select>
-<input type="number" id="font-size-input" title="Tamanho" style="flex: 1; height: 28px; padding: 2px; text-align: center;" min="8" max="48" placeholder="12">
+<input type="number" id="font-size-input" title="Tamanho" style="flex: 1; height: 28px; padding: 2px; text-align: center;" min="8" max="48" placeholder="Auto">
 <button class="studio-btn toggle" id="btn-font-bold" title="Negrito" style="height: 28px; width: 28px; padding: 0;">B</button>
 <button class="studio-btn toggle" id="btn-font-italic" title="Itálico" style="height: 28px; width: 28px; padding: 0; font-style: italic;">I</button>
 </div>
 <label style="margin:0 0 5px 0; font-size: 10px;">CONTORNO E LINHAS</label>
 <div style="display: flex; gap: 5px; align-items: center;">
 <select id="line-style-select" style="flex: 2; height: 28px; font-size: 11px;">
-<option value="">Contínua (Padrão)</option>
+<option value="">Contínua / Misto</option>
 <option value="dashed">Tracejada</option>
 <option value="dotted">Pontilhada</option>
 </select>
 <select id="line-width-select" style="flex: 1; height: 28px; font-size: 11px;">
-<option value="">1px (Padrão)</option>
+<option value="">1px / Misto</option>
 <option value="2">2px</option>
 <option value="3">3px</option>
 <option value="4">4px</option>
@@ -219,10 +226,12 @@ padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13p
 </div>
 <div style="border-top: 1px solid #e2e8f0; margin: 15px 0;"></div>
 <div class="studio-form-group" style="margin-bottom: 0;">
-<label>Vincular Nó à Camada:</label>
+<label>Vincular à Camada:</label>
 <select id="node-layer-select" class="full-width"></select>
 </div>
+<div id="single-edit-only-bottom">
 <div id="node-dynamic-fields" style="margin-top: 15px;"></div>
+</div>
 </div>
 </div>
 </div>
@@ -249,7 +258,7 @@ nodes: { 'StartEvent_1': { layerId: 'layer_negocio', data: {}, style: {} } }
 };
 const state = {
 isReadOnly: false, fileHandle: null, dbId: null, dbName: null,
-saveTimeout: null, selectedNodeId: null, data: null
+saveTimeout: null, selectedNodeIds: [], data: null
 };
 let bpmnModeler, canvas, eventBus, elementRegistry;
 const Supabase = {
@@ -491,34 +500,46 @@ else { icon.innerText = "✔️"; text.innerText = "Salvo"; container.classList.
 };
 const engine = {
 applyColorFromPalette(newColor) {
-if(state.isReadOnly || !state.selectedNodeId) return;
+if(state.isReadOnly || state.selectedNodeIds.length === 0) return;
 const target = document.getElementById('color-target-select').value;
 if (target === 'text') {
 this.updateNodeStyle('fontColor', newColor);
 } else {
-const element = elementRegistry.get(state.selectedNodeId);
-if(!element) return;
-bpmnModeler.get('modeling').setColor([element], { [target]: newColor });
-const nodeData = state.data.nodes[state.selectedNodeId];
+const elementsToColor = [];
+state.selectedNodeIds.forEach(id => {
+const element = elementRegistry.get(id);
+if(element) elementsToColor.push(element);
+const nodeData = state.data.nodes[id];
 if (!nodeData.style) nodeData.style = {};
-if (!nodeData.style.fontColor) this.updateNodeStyle('fontColor', '#222222');
+if (!nodeData.style.fontColor) nodeData.style.fontColor = '#222222';
+});
+if(elementsToColor.length > 0) {
+bpmnModeler.get('modeling').setColor(elementsToColor, { [target]: newColor });
+}
+this.updateDynamicStyles();
+app.triggerAutoSave();
 }
 },
 updateNodeStyle(key, value) {
-if(state.isReadOnly || !state.selectedNodeId) return;
-if(!state.data.nodes[state.selectedNodeId].style) state.data.nodes[state.selectedNodeId].style = {};
-state.data.nodes[state.selectedNodeId].style[key] = value;
+if(state.isReadOnly || state.selectedNodeIds.length === 0) return;
+state.selectedNodeIds.forEach(id => {
+if(!state.data.nodes[id].style) state.data.nodes[id].style = {};
+state.data.nodes[id].style[key] = value;
+});
+this.syncStyleEditor();
 this.updateDynamicStyles();
 app.triggerAutoSave();
 },
 resetNodeStyles() {
-if(state.isReadOnly || !state.selectedNodeId) return;
-const element = elementRegistry.get(state.selectedNodeId);
-if(element) {
-bpmnModeler.get('modeling').setColor([element], { fill: null, stroke: null });
-}
-if(state.data.nodes[state.selectedNodeId]) {
-state.data.nodes[state.selectedNodeId].style = {};
+if(state.isReadOnly || state.selectedNodeIds.length === 0) return;
+const elementsToColor = [];
+state.selectedNodeIds.forEach(id => {
+const element = elementRegistry.get(id);
+if(element) elementsToColor.push(element);
+if(state.data.nodes[id]) state.data.nodes[id].style = {};
+});
+if(elementsToColor.length > 0) {
+bpmnModeler.get('modeling').setColor(elementsToColor, { fill: null, stroke: null });
 }
 this.syncStyleEditor();
 this.updateDynamicStyles();
@@ -562,16 +583,30 @@ css += `}\n`;
 document.getElementById('dynamic-node-styles').innerHTML = css;
 },
 syncStyleEditor() {
-const nodeData = state.data.nodes[state.selectedNodeId];
-const style = nodeData ? (nodeData.style || {}) : {};
-document.getElementById('font-family-select').value = style.fontFamily || '';
-document.getElementById('font-size-input').value = style.fontSize || '';
+if(state.selectedNodeIds.length === 0) return;
+
+const getSharedStyle = (key) => {
+const firstVal = (state.data.nodes[state.selectedNodeIds[0]].style || {})[key];
+const allSame = state.selectedNodeIds.every(id => (state.data.nodes[id].style || {})[key] === firstVal);
+return allSame ? (firstVal || '') : '';
+};
+
+document.getElementById('font-family-select').value = getSharedStyle('fontFamily');
+document.getElementById('font-size-input').value = getSharedStyle('fontSize');
+document.getElementById('line-style-select').value = getSharedStyle('lineStyle');
+document.getElementById('line-width-select').value = getSharedStyle('lineWidth');
+
+const isBold = getSharedStyle('isBold') === true;
+const isMixedBold = !state.selectedNodeIds.every(id => (state.data.nodes[id].style || {}).isBold === (state.data.nodes[state.selectedNodeIds[0]].style || {}).isBold);
 const btnBold = document.getElementById('btn-font-bold');
+if(isMixedBold) { btnBold.classList.remove('active'); btnBold.style.opacity = '0.5'; }
+else { btnBold.style.opacity = '1'; if(isBold) btnBold.classList.add('active'); else btnBold.classList.remove('active'); }
+
+const isItalic = getSharedStyle('isItalic') === true;
+const isMixedItalic = !state.selectedNodeIds.every(id => (state.data.nodes[id].style || {}).isItalic === (state.data.nodes[state.selectedNodeIds[0]].style || {}).isItalic);
 const btnItal = document.getElementById('btn-font-italic');
-if(style.isBold) btnBold.classList.add('active'); else btnBold.classList.remove('active');
-if(style.isItalic) btnItal.classList.add('active'); else btnItal.classList.remove('active');
-document.getElementById('line-style-select').value = style.lineStyle || '';
-document.getElementById('line-width-select').value = style.lineWidth || '';
+if(isMixedItalic) { btnItal.classList.remove('active'); btnItal.style.opacity = '0.5'; }
+else { btnItal.style.opacity = '1'; if(isItalic) btnItal.classList.add('active'); else btnItal.classList.remove('active'); }
 },
 renderPalettes() {
 const pStd = document.getElementById('palette-standard'); pStd.innerHTML = '';
@@ -631,38 +666,64 @@ if (!state.data.nodes[el.id]) { state.data.nodes[el.id] = { layerId: state.data.
 });
 }
 eventBus.on('selection.changed', function(e) {
-const selection = e.newSelection;
-// CORREÇÃO CRÍTICA APLICADA: e.newSelection é um Array. Precisamos validar a tipagem do índice 0.
-if (selection.length === 1 && selection[0].type !== 'bpmn:Process') {
-let element = selection[0];
-if (element.type === 'label' && element.labelTarget) {
-element = element.labelTarget;
+// 1. Filtro rigoroso de nós ocultos sendo arrastados via Marquee Selection
+const hiddenElements = e.newSelection.filter(el => {
+if(el.type === 'bpmn:Process') return false;
+let targetId = (el.type === 'label' && el.labelTarget) ? el.labelTarget.id : el.id;
+const nodeData = state.data.nodes[targetId];
+if(!nodeData) return false;
+const layer = state.data.layers[nodeData.layerId];
+return layer && !(layer.id === state.data.activeLayerId || layer.isFixed);
+});
+
+// Se capturou nós ocultos, limpa da seleção e aborta esse frame para o motor refazer a chamada
+if (hiddenElements.length > 0) {
+const visibleOnly = e.newSelection.filter(el => !hiddenElements.includes(el));
+bpmnModeler.get('selection').select(visibleOnly);
+return;
 }
-state.selectedNodeId = element.id;
+
+const validElements = e.newSelection.filter(el => el.type !== 'bpmn:Process');
+
+if (validElements.length > 0) {
+state.selectedNodeIds = [...new Set(validElements.map(el => (el.type === 'label' && el.labelTarget) ? el.labelTarget.id : el.id))];
+
 document.getElementById('node-empty-state').style.display = 'none';
 document.getElementById('node-editor-state').style.display = 'block';
+
+if (state.selectedNodeIds.length === 1) {
+const elId = state.selectedNodeIds[0];
+const element = elementRegistry.get(elId);
 document.getElementById('node-type-label').innerText = element.type.replace('bpmn:', '');
-document.getElementById('node-id-label').innerText = element.id;
+document.getElementById('node-id-label').innerText = elId;
+document.getElementById('single-edit-only-top').style.display = 'block';
 const nameInput = document.getElementById('node-name-input');
 if (document.activeElement !== nameInput) nameInput.value = element.businessObject.name || '';
+} else {
+document.getElementById('node-type-label').innerText = 'Edição em Lote';
+document.getElementById('node-id-label').innerText = `${state.selectedNodeIds.length} elementos selecionados`;
+document.getElementById('single-edit-only-top').style.display = 'none';
+}
+
 engine.syncStyleEditor();
 engine.renderNodeEditor();
 } else {
-state.selectedNodeId = null;
+state.selectedNodeIds = [];
 document.getElementById('node-empty-state').style.display = 'block';
 document.getElementById('node-editor-state').style.display = 'none';
 }
 });
+
 eventBus.on('element.changed', function(e) {
-if (state.selectedNodeId === e.element.id) {
+if (state.selectedNodeIds.length === 1 && state.selectedNodeIds[0] === e.element.id) {
 const nameInput = document.getElementById('node-name-input');
 if (document.activeElement !== nameInput) nameInput.value = e.element.businessObject.name || '';
 }
 });
 },
 updateNodeName(newName) {
-if(state.isReadOnly || !state.selectedNodeId) return;
-const modeling = bpmnModeler.get('modeling'); const element = elementRegistry.get(state.selectedNodeId);
+if(state.isReadOnly || state.selectedNodeIds.length !== 1) return;
+const modeling = bpmnModeler.get('modeling'); const element = elementRegistry.get(state.selectedNodeIds[0]);
 if(element) modeling.updateProperties(element, { name: newName });
 },
 addLayer() {
@@ -670,13 +731,13 @@ if(state.isReadOnly) return;
 const input = document.getElementById('new-layer-name'); const name = input.value.trim(); if (!name) return;
 const id = 'layer_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
 state.data.layers[id] = { id, name, isFixed: false, fields: [] }; input.value = '';
-this.renderLayersUI(); if (state.selectedNodeId) this.renderNodeEditor(); app.triggerAutoSave();
+this.renderLayersUI(); if (state.selectedNodeIds.length > 0) this.renderNodeEditor(); app.triggerAutoSave();
 },
 removeLayer(id) {
 if(state.isReadOnly || id === 'layer_negocio') return; delete state.data.layers[id];
 Object.keys(state.data.nodes).forEach(nodeId => { if(state.data.nodes[nodeId].layerId === id) state.data.nodes[nodeId].layerId = 'layer_negocio'; });
 if(state.data.activeLayerId === id) this.setActiveLayer('layer_negocio'); else { this.renderLayersUI(); this.updateVisibility(); app.triggerAutoSave(); }
-if(state.selectedNodeId) this.renderNodeEditor();
+if(state.selectedNodeIds.length > 0) this.renderNodeEditor();
 },
 toggleFixed(id, isChecked) {
 if(state.isReadOnly) return; state.data.layers[id].isFixed = isChecked; this.updateVisibility(); app.triggerAutoSave();
@@ -690,12 +751,12 @@ const input = document.getElementById(`new-field-name-${layerId}`); const select
 const fieldName = input.value.trim(); const fieldType = selectType.value;
 if (fieldName && !state.data.layers[layerId].fields.find(f => f.name === fieldName)) {
 state.data.layers[layerId].fields.push({ name: fieldName, type: fieldType }); input.value = '';
-this.renderLayersUI(); if (state.selectedNodeId) this.renderNodeEditor(); app.triggerAutoSave();
+this.renderLayersUI(); if (state.selectedNodeIds.length > 0) this.renderNodeEditor(); app.triggerAutoSave();
 }
 },
 removeField(layerId, fieldName) {
 if(state.isReadOnly) return; state.data.layers[layerId].fields = state.data.layers[layerId].fields.filter(f => f.name !== fieldName);
-this.renderLayersUI(); if(state.selectedNodeId) this.renderNodeEditor(); app.triggerAutoSave();
+this.renderLayersUI(); if(state.selectedNodeIds.length > 0) this.renderNodeEditor(); app.triggerAutoSave();
 },
 renderLayersUI() {
 const container = document.getElementById('layers-container'); container.innerHTML = '';
@@ -740,14 +801,30 @@ card.appendChild(fieldsBox); container.appendChild(card);
 });
 },
 renderNodeEditor() {
-const nodeId = state.selectedNodeId; const nodeData = state.data.nodes[nodeId]; if (!nodeData) return;
+if (state.selectedNodeIds.length === 0) return;
 const select = document.getElementById('node-layer-select'); select.innerHTML = '';
+
+const firstLayerId = state.data.nodes[state.selectedNodeIds[0]].layerId;
+const allSameLayer = state.selectedNodeIds.every(id => state.data.nodes[id].layerId === firstLayerId);
+
+if(!allSameLayer) {
+const optMixed = document.createElement('option');
+optMixed.value = ''; optMixed.innerText = '[Múltiplas Camadas]';
+optMixed.selected = true; optMixed.disabled = true;
+select.appendChild(optMixed);
+}
+
 Object.values(state.data.layers).forEach(l => {
 const opt = document.createElement('option'); opt.value = l.id; opt.innerText = l.name;
-if(nodeData.layerId === l.id) opt.selected = true; select.appendChild(opt);
+if(allSameLayer && firstLayerId === l.id) opt.selected = true;
+select.appendChild(opt);
 });
-const layerFields = state.data.layers[nodeData.layerId]?.fields || [];
+
 const fieldsContainer = document.getElementById('node-dynamic-fields'); fieldsContainer.innerHTML = '';
+if (state.selectedNodeIds.length === 1) {
+document.getElementById('single-edit-only-bottom').style.display = 'block';
+const nodeData = state.data.nodes[state.selectedNodeIds[0]];
+const layerFields = state.data.layers[nodeData.layerId]?.fields || [];
 if(layerFields.length === 0) { fieldsContainer.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">Esta layer não possui campos configurados.</span>'; return; }
 layerFields.forEach(f => {
 const val = nodeData.data[f.name] || ''; const grp = document.createElement('div'); grp.className = 'studio-form-group';
@@ -758,16 +835,22 @@ inputEl.addEventListener('keydown', (e) => e.stopPropagation());
 inputEl.addEventListener('input', (e) => engine.updateNodeData(f.name, e.target.value));
 grp.appendChild(inputEl); fieldsContainer.appendChild(grp);
 });
+} else {
+document.getElementById('single-edit-only-bottom').style.display = 'none';
+}
 },
 assignNodeToLayer(layerId) {
-if(state.isReadOnly || !state.selectedNodeId) return;
-state.data.nodes[state.selectedNodeId].layerId = layerId;
+if(state.isReadOnly || state.selectedNodeIds.length === 0 || !layerId) return;
+state.selectedNodeIds.forEach(id => {
+state.data.nodes[id].layerId = layerId;
+});
 this.renderNodeEditor(); this.updateVisibility(); app.triggerAutoSave();
 },
 updateNodeData(key, value) {
-if(state.isReadOnly || !state.selectedNodeId) return;
-if(!state.data.nodes[state.selectedNodeId].data) state.data.nodes[state.selectedNodeId].data = {};
-state.data.nodes[state.selectedNodeId].data[key] = value; app.triggerAutoSave();
+if(state.isReadOnly || state.selectedNodeIds.length !== 1) return;
+const id = state.selectedNodeIds[0];
+if(!state.data.nodes[id].data) state.data.nodes[id].data = {};
+state.data.nodes[id].data[key] = value; app.triggerAutoSave();
 },
 updateVisibility() {
 elementRegistry.forEach(function(element) {
@@ -776,7 +859,6 @@ let targetId = element.id; if (element.type === 'label' && element.labelTarget) 
 const nodeData = state.data.nodes[targetId]; if (!nodeData) return;
 const nodeLayer = state.data.layers[nodeData.layerId]; if (!nodeLayer) return;
 const isVisible = (nodeLayer.id === state.data.activeLayerId) || nodeLayer.isFixed;
-const labelIsActive = (nodeLayer.id === state.data.activeLayerId);
 if (!isVisible) {
 canvas.addMarker(element.id, 'bpmn-layer-hidden');
 } else {
@@ -789,9 +871,6 @@ const cards = container.querySelectorAll('.studio-layer-card');
 cards.forEach(card => {
 const nameSpan = card.querySelector('.studio-layer-name');
 const cbFix = card.querySelector('input[type="checkbox"]');
-const btnDel = cbFix.closest('.studio-layer-controls').querySelector('.studio-btn');
-const id = btnDel ? btnDel.dataset.id : 'layer_negocio';
-
 if(nameSpan.innerText.includes('🔵')) {
 cbFix.nextSibling.textContent = ' Fixa (Em Foco)';
 cbFix.disabled = true;
@@ -831,12 +910,20 @@ document.getElementById('btn-reset-style').addEventListener('click', () => engin
 document.getElementById('font-family-select').addEventListener('change', (e) => engine.updateNodeStyle('fontFamily', e.target.value));
 document.getElementById('font-size-input').addEventListener('change', (e) => engine.updateNodeStyle('fontSize', e.target.value));
 document.getElementById('btn-font-bold').addEventListener('click', (e) => {
-const btn = e.target; btn.classList.toggle('active');
-engine.updateNodeStyle('isBold', btn.classList.contains('active'));
+const btn = e.target;
+if(btn.style.opacity === '0.5') {
+btn.style.opacity = '1'; btn.classList.add('active'); engine.updateNodeStyle('isBold', true);
+} else {
+btn.classList.toggle('active'); engine.updateNodeStyle('isBold', btn.classList.contains('active'));
+}
 });
 document.getElementById('btn-font-italic').addEventListener('click', (e) => {
-const btn = e.target; btn.classList.toggle('active');
-engine.updateNodeStyle('isItalic', btn.classList.contains('active'));
+const btn = e.target;
+if(btn.style.opacity === '0.5') {
+btn.style.opacity = '1'; btn.classList.add('active'); engine.updateNodeStyle('isItalic', true);
+} else {
+btn.classList.toggle('active'); engine.updateNodeStyle('isItalic', btn.classList.contains('active'));
+}
 });
 document.getElementById('line-style-select').addEventListener('change', (e) => engine.updateNodeStyle('lineStyle', e.target.value));
 document.getElementById('line-width-select').addEventListener('change', (e) => engine.updateNodeStyle('lineWidth', e.target.value));
