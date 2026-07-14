@@ -452,6 +452,8 @@
                 existingLinks.forEach(link => link.parentNode.removeChild(link));
                 const link = document.createElement('link'); link.type = 'image/svg+xml'; link.rel = 'icon';
                 link.href = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%E2%9A%A1%3C%2Ftext%3E%3C%2Fsvg%3E';
+                
+                // RESTAURADO COM  CONFORME ARQUIVO ORIGINAL
                 document.getElementsByTagName('head').appendChild(link);
             },
 
@@ -877,10 +879,12 @@
                 const container = document.getElementById('layers-container');
                 container.innerHTML = '';
 
+                // Isola a camada de Negócio para garantir que seja sempre a primeira
                 const layersArray = Object.values(state.data.layers);
                 const coreLayer = layersArray.find(l => l.id === 'layer_negocio');
                 const otherLayers = layersArray.filter(l => l.id !== 'layer_negocio');
                 
+                // Concatena colocando o Core no topo
                 const sortedLayers = coreLayer ? [coreLayer, ...otherLayers] : otherLayers;
 
                 sortedLayers.forEach(layer => {
@@ -1081,6 +1085,7 @@
                     const nodeData = state.data.nodes[targetId]; if (!nodeData) return;
                     const nodeLayer = state.data.layers[nodeData.layerId]; if (!nodeLayer) return;
 
+                    // O comportamento da visibilidade depende ESTRITAMENTE do checkbox isFixed
                     const isVisible = nodeLayer.isFixed;
 
                     if (!isVisible) {
